@@ -33,9 +33,14 @@
     <dependencies>
         <!-- HTTP client -->
         <dependency>
-            <groupId>org.apache.httpcomponents</groupId>
-            <artifactId>httpclient</artifactId>
-            <version>4.5.14</version>
+            <groupId>com.konghq</groupId>
+            <artifactId>unirest-java-core</artifactId>
+            <version>${unirest.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.konghq</groupId>
+            <artifactId>unirest-modules-jackson</artifactId>
+            <version>${unirest.version}</version>
         </dependency>
         <!-- JSON -->
         <dependency>
