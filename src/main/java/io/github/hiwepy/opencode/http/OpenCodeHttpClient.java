@@ -6,14 +6,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.hiwepy.opencode.OpenCodeClientConfig;
 import io.github.hiwepy.opencode.exception.OpenCodeHttpException;
 import io.github.hiwepy.opencode.model.*;
-import kong.unirest.core.*;
-import kong.unirest.jackson.JacksonObjectMapper;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.*;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * OpenCode Server HTTP 客户端，封装 REST API。
@@ -23,28 +34,15 @@ import java.util.Map;
 public class OpenCodeHttpClient implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(OpenCodeHttpClient.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private final OpenCodeClientConfig config;
-    private final UnirestInstance unirest;
+    private final CloseableHttpClient http;
 
     public OpenCodeHttpClient(OpenCodeClientConfig config) {
-        this.config = config;
-        ObjectMapper mapper = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        this.unirest = Unirest.primaryInstance();
-        this.unirest.config()
-                .baseUrl(config.getServerUrl())
-                .connectTimeout(config.getConnectTimeoutMillis())
-                .socketTimeout(config.getReadTimeoutMillis())
-                .verifySsl(config.isVerifySsl())
-                .setObjectMapper(new JacksonObjectMapper(mapper));
-
-        String password = config.resolvePassword();
-        if (!password.isEmpty()) {
-            String credentials = Base64.getEncoder()
-                    .encodeToString((config.getUsername() + ":" + password).getBytes());
-            this.unirest.config().addDefaultHeader("Authorization", "Basic " + credentials);
-        }
+        this.config = Objects.requireNonNull(config, "config");
+        this.http = buildHttpClient(config);
     }
 
     // ============================================================
@@ -69,12 +67,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     public List<Session> listSessions() {
-        return get("/session", new TypeReference<List<Session>>() {});
+        String json = getRaw("/session");
+        return parseList(json, new TypeReference<List<Session>>() {});
     }
 
     public boolean deleteSession(String sessionId) {
-        HttpResponse<String> resp = unirest.delete("/session/" + sessionId).asString();
-        return resp.isSuccess();
+        return delete("/session/" + sessionId);
     }
 
     // ============================================================
@@ -83,7 +81,6 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     /**
      * 发送消息并同步等待 AI 响应（POST /session/:id/message）。
-     * <p>此方法会阻塞直到 AI 完成响应，可能耗时较长。</p>
      */
     public PromptResult prompt(String sessionId, PromptRequest request) {
         return post("/session/" + sessionId + "/message", request, PromptResult.class);
@@ -91,27 +88,18 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     /**
      * 异步发送消息，不等待响应（POST /session/:id/prompt_async）。
-     * <p>返回 204 No Content 表示已接受。</p>
-     *
-     * @return 是否成功提交
      */
     public boolean promptAsync(String sessionId, PromptRequest request) {
-        HttpResponse<String> resp = unirest.post("/session/" + sessionId + "/prompt_async")
-                .body(request)
-                .asString();
-        return resp.isSuccess();
+        return postNoContent("/session/" + sessionId + "/prompt_async", request);
     }
 
     public List<PromptResult> getMessages(String sessionId) {
-        return get("/session/" + sessionId + "/message", new TypeReference<List<PromptResult>>() {});
+        String json = getRaw("/session/" + sessionId + "/message");
+        return parseList(json, new TypeReference<List<PromptResult>>() {});
     }
 
-    /**
-     * 中止正在运行的会话。
-     */
     public boolean abortSession(String sessionId) {
-        HttpResponse<String> resp = unirest.post("/session/" + sessionId + "/abort").asString();
-        return resp.isSuccess();
+        return postNoContent("/session/" + sessionId + "/abort", null);
     }
 
     // ============================================================
@@ -119,50 +107,159 @@ public class OpenCodeHttpClient implements AutoCloseable {
     // ============================================================
 
     public List<Agent> listAgents() {
-        return get("/agent", new TypeReference<List<Agent>>() {});
+        String json = getRaw("/agent");
+        return parseList(json, new TypeReference<List<Agent>>() {});
     }
 
     // ============================================================
-    // MCP
-    // ============================================================
-
-    public Map<String, Object> getMcpStatus() {
-        return get("/mcp", new TypeReference<Map<String, Object>>() {});
-    }
-
-    // ============================================================
-    // Internal helpers
+    // Internal HTTP helpers
     // ============================================================
 
     private <T> T get(String path, Class<T> type) {
-        HttpResponse<T> resp = unirest.get(path).asObject(type);
-        if (!resp.isSuccess()) {
-            throw new OpenCodeHttpException(resp.getStatus(), resp.getBody() != null ? resp.getBody().toString() : "");
+        String json = getRaw(path);
+        try {
+            return MAPPER.readValue(json, type);
+        } catch (Exception e) {
+            throw new OpenCodeHttpException(200, "JSON parse error: " + e.getMessage());
         }
-        return resp.getBody();
     }
 
-    private <T> T get(String path, TypeReference<T> typeRef) {
-        HttpResponse<T> resp = unirest.get(path).asObject(typeRef);
-        if (!resp.isSuccess()) {
-            throw new OpenCodeHttpException(resp.getStatus(), resp.getBody() != null ? resp.getBody().toString() : "");
+    private String getRaw(String path) {
+        String url = config.getServerUrl() + path;
+        HttpGet request = new HttpGet(url);
+        addAuthHeader(request);
+        try (CloseableHttpResponse response = http.execute(request)) {
+            int status = response.getStatusLine().getStatusCode();
+            String body = response.getEntity() != null
+                    ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8) : "";
+            if (status < 200 || status >= 300) {
+                throw new OpenCodeHttpException(status, body);
+            }
+            return body;
+        } catch (OpenCodeHttpException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new OpenCodeHttpException(0, "Request failed: " + e.getMessage());
         }
-        return resp.getBody();
     }
 
     private <T> T post(String path, Object body, Class<T> type) {
-        HttpResponse<T> resp = unirest.post(path)
-                .header("Content-Type", "application/json")
-                .body(body)
-                .asObject(type);
-        if (!resp.isSuccess()) {
-            throw new OpenCodeHttpException(resp.getStatus(), resp.getBody() != null ? resp.getBody().toString() : "");
+        String json = postRaw(path, body);
+        try {
+            return MAPPER.readValue(json, type);
+        } catch (Exception e) {
+            throw new OpenCodeHttpException(200, "JSON parse error: " + e.getMessage());
         }
-        return resp.getBody();
+    }
+
+    private boolean postNoContent(String path, Object body) {
+        String url = config.getServerUrl() + path;
+        HttpPost request = new HttpPost(url);
+        addAuthHeader(request);
+        if (body != null) {
+            try {
+                String json = MAPPER.writeValueAsString(body);
+                request.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
+            } catch (Exception e) {
+                throw new OpenCodeHttpException(0, "JSON serialize error: " + e.getMessage());
+            }
+        }
+        try (CloseableHttpResponse response = http.execute(request)) {
+            int status = response.getStatusLine().getStatusCode();
+            return status >= 200 && status < 300;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private String postRaw(String path, Object body) {
+        String url = config.getServerUrl() + path;
+        HttpPost request = new HttpPost(url);
+        addAuthHeader(request);
+        if (body != null) {
+            try {
+                String json = MAPPER.writeValueAsString(body);
+                request.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
+            } catch (Exception e) {
+                throw new OpenCodeHttpException(0, "JSON serialize error: " + e.getMessage());
+            }
+        }
+        try (CloseableHttpResponse response = http.execute(request)) {
+            int status = response.getStatusLine().getStatusCode();
+            String responseBody = response.getEntity() != null
+                    ? EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8) : "";
+            if (status < 200 || status >= 300) {
+                throw new OpenCodeHttpException(status, responseBody);
+            }
+            return responseBody;
+        } catch (OpenCodeHttpException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new OpenCodeHttpException(0, "Request failed: " + e.getMessage());
+        }
+    }
+
+    private boolean delete(String path) {
+        String url = config.getServerUrl() + path;
+        HttpDelete request = new HttpDelete(url);
+        addAuthHeader(request);
+        try (CloseableHttpResponse response = http.execute(request)) {
+            int status = response.getStatusLine().getStatusCode();
+            return status >= 200 && status < 300;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void addAuthHeader(HttpRequestBase request) {
+        String password = config.resolvePassword();
+        if (!password.isEmpty()) {
+            String credentials = Base64.getEncoder()
+                    .encodeToString((config.getUsername() + ":" + password).getBytes());
+            request.setHeader("Authorization", "Basic " + credentials);
+        }
+    }
+
+    private <T> List<T> parseList(String json, TypeReference<List<T>> typeRef) {
+        try {
+            return MAPPER.readValue(json, typeRef);
+        } catch (Exception e) {
+            throw new OpenCodeHttpException(200, "JSON parse error: " + e.getMessage());
+        }
+    }
+
+    private CloseableHttpClient buildHttpClient(OpenCodeClientConfig config) {
+        try {
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setConnectTimeout(config.getConnectTimeoutMillis())
+                    .setSocketTimeout(config.getReadTimeoutMillis())
+                    .setConnectionRequestTimeout(config.getConnectTimeoutMillis())
+                    .build();
+
+            if (!config.isVerifySsl()) {
+                SSLContext sslContext = new SSLContextBuilder()
+                        .loadTrustMaterial(null, (chain, authType) -> true)
+                        .build();
+                SSLConnectionSocketFactory sslFactory = new SSLConnectionSocketFactory(
+                        sslContext, NoopHostnameVerifier.INSTANCE);
+                return HttpClients.custom()
+                        .setDefaultRequestConfig(requestConfig)
+                        .setSSLSocketFactory(sslFactory)
+                        .build();
+            }
+            return HttpClients.custom()
+                    .setDefaultRequestConfig(requestConfig)
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build HTTP client", e);
+        }
     }
 
     @Override
     public void close() {
-        unirest.shutDown();
+        try {
+            http.close();
+        } catch (Exception ignored) {
+        }
     }
 }
