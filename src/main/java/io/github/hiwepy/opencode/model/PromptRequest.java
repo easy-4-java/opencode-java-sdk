@@ -1,11 +1,14 @@
 package io.github.hiwepy.opencode.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * opencode server 消息发送请求体（POST /session/:id/message）。
@@ -14,6 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PromptRequest {
 
     /**
@@ -41,10 +45,24 @@ public class PromptRequest {
      */
     private String system;
 
+    /** 消息 ID（用于覆盖/重试时指定） */
+    @JsonProperty("messageID")
+    private String messageID;
+
+    /** 输出格式 */
+    private String format;
+
+    /** 模型变体 */
+    private String variant;
+
+    /** 工具开关映射（工具名 → 是否启用） */
+    private Map<String, Boolean> tools;
+
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ModelRef {
         private String providerID;
         private String modelID;

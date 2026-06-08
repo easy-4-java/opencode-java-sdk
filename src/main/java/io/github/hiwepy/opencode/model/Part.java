@@ -1,6 +1,8 @@
 package io.github.hiwepy.opencode.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 
 /**
@@ -17,6 +19,6 @@ public class Part {
     private String name;
 
     /** tool_use / tool_result 的 tool call id */
-    @lombok.Getter(onMethod_ = @com.fasterxml.jackson.annotation.JsonProperty("tool_use_id"))
+    @JsonProperty("tool_use_id")
     private String toolUseId;
 }

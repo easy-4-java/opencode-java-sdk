@@ -1,10 +1,11 @@
 package io.github.hiwepy.opencode.http;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.hiwepy.opencode.OpenCodeClientConfig;
 import io.github.hiwepy.opencode.model.Event;
+import io.github.hiwepy.opencode.model.event.EventParser;
+import io.github.hiwepy.opencode.model.event.TypedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +15,6 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.util.Base64;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -22,7 +22,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
 /**
- * OpenCode Server SSE 客户端，消费 {@code GET /event} 事件流。
+ * OpenCode Server SSE 客户端，消费 {@code GET /event}、{@code /global/event}、{@code /api/event} 事件流。
+ * <p>
+ * 支持泛化 {@link Event} 回调和类型化 {@link TypedEvent} 回调。
+ * </p>
  */
 public class OpenCodeSseClient implements AutoCloseable {
 
@@ -40,19 +43,15 @@ public class OpenCodeSseClient implements AutoCloseable {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
+    // ============================================================
+    // V1 事件流（/event）
+    // ============================================================
+
     /**
      * 异步订阅 SSE 事件流，事件通过 consumer 回调。
-     *
-     * @param consumer 事件消费者
      */
     public void subscribe(Consumer<Event> consumer) {
-        this.running = true;
-        this.executor = Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "opencode-sse");
-            t.setDaemon(true);
-            return t;
-        });
-        this.executor.submit(() -> doSubscribe(consumer));
+        subscribeToPath("/event", consumer);
     }
 
     /**
@@ -64,10 +63,105 @@ public class OpenCodeSseClient implements AutoCloseable {
         return queue;
     }
 
-    private void doSubscribe(Consumer<Event> consumer) {
+    // ============================================================
+    // 全局事件流（/global/event）
+    // ============================================================
+
+    /**
+     * 异步订阅全局 SSE 事件流。
+     */
+    public void subscribeGlobal(Consumer<Event> consumer) {
+        subscribeToPath("/global/event", consumer);
+    }
+
+    public BlockingQueue<Event> subscribeGlobalQueue() {
+        BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
+        subscribeGlobal(queue::offer);
+        return queue;
+    }
+
+    // ============================================================
+    // V2 事件流（/api/event）
+    // ============================================================
+
+    /**
+     * 异步订阅 V2 API SSE 事件流。
+     */
+    public void subscribeV2(Consumer<Event> consumer) {
+        subscribeToPath("/api/event", consumer);
+    }
+
+    public BlockingQueue<Event> subscribeV2Queue() {
+        BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
+        subscribeV2(queue::offer);
+        return queue;
+    }
+
+    // ============================================================
+    // 类型化事件消费
+    // ============================================================
+
+    /**
+     * 异步订阅并自动转换为 {@link TypedEvent}。
+     */
+    public void subscribeTyped(Consumer<TypedEvent> consumer) {
+        subscribe(event -> consumer.accept(EventParser.parse(event)));
+    }
+
+    /**
+     * 异步订阅并按事件类型分发到不同 handler。
+     */
+    public void subscribeTyped(TypedEventHandler handler) {
+        subscribe(event -> {
+            TypedEvent typed = EventParser.parse(event);
+            String type = typed.getType();
+            if (type == null) return;
+
+            if (type.contains(".text.delta")) {
+                handler.onTextDelta(typed);
+            } else if (type.contains(".tool.")) {
+                handler.onTool(typed);
+            } else if (type.contains(".step.")) {
+                handler.onStep(typed);
+            } else if (type.contains(".reasoning.delta")) {
+                handler.onReasoningDelta(typed);
+            } else if (type.contains(".shell.")) {
+                handler.onShell(typed);
+            }
+            handler.onAny(typed);
+        });
+    }
+
+    /**
+     * 类型化事件多路分发接口。
+     */
+    public interface TypedEventHandler {
+        default void onTextDelta(TypedEvent event) {}
+        default void onTool(TypedEvent event) {}
+        default void onStep(TypedEvent event) {}
+        default void onReasoningDelta(TypedEvent event) {}
+        default void onShell(TypedEvent event) {}
+        default void onAny(TypedEvent event) {}
+    }
+
+    // ============================================================
+    // 内部实现
+    // ============================================================
+
+    private void subscribeToPath(String path, Consumer<Event> consumer) {
+        this.running = true;
+        this.executor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "opencode-sse");
+            t.setDaemon(true);
+            return t;
+        });
+        this.executor.submit(() -> doSubscribe(path, consumer));
+    }
+
+    private void doSubscribe(String path, Consumer<Event> consumer) {
         while (running) {
             try {
-                String url = config.getServerUrl() + "/event";
+                String url = config.getServerUrl() + path;
                 connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(config.getConnectTimeoutMillis());
@@ -84,7 +178,7 @@ public class OpenCodeSseClient implements AutoCloseable {
 
                 int status = connection.getResponseCode();
                 if (status != 200) {
-                    log.warn("SSE connection failed with status: {}, retrying in 5s", status);
+                    log.warn("SSE connection to {} failed with status: {}, retrying in 5s", path, status);
                     Thread.sleep(5000);
                     continue;
                 }
@@ -111,7 +205,7 @@ public class OpenCodeSseClient implements AutoCloseable {
                 break;
             } catch (IOException e) {
                 if (running) {
-                    log.warn("SSE connection lost, retrying in 5s", e);
+                    log.warn("SSE connection lost for {}, retrying in 5s", path, e);
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException ie) {
