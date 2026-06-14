@@ -92,60 +92,62 @@ public class OpenCodeClient implements AutoCloseable {
      * @param request   prompt 请求
      * @return AI 响应
      */
-    public PromptResult prompt(String sessionId, PromptRequest request) {
+    public PromptResult chatCompletion(String sessionId, PromptRequest request) {
         return httpClient.prompt(sessionId, request);
     }
 
     /**
      * 快捷方式：发送纯文本 prompt。
      */
-    public PromptResult prompt(String sessionId, String text) {
+    public PromptResult chatCompletion(String sessionId, String text) {
         return httpClient.prompt(sessionId, PromptRequest.ofText(text));
     }
 
     /**
      * 快捷方式：发送纯文本 prompt 并指定模型。
      */
-    public PromptResult prompt(String sessionId, String text, String providerID, String modelID) {
+    public PromptResult chatCompletion(String sessionId, String text, String providerID, String modelID) {
         return httpClient.prompt(sessionId, PromptRequest.ofText(text, providerID, modelID));
     }
 
     // ----------------------------------------------------------------
-    // sessionKey 模式（对齐 Hermes/OpenClaw，自动复用/创建 session）
+    // sessionKey 模式（对齐 Hermes/OpenClaw chatCompletionWithSession）
     // ----------------------------------------------------------------
 
     /**
-     * 按 sessionKey 发送 prompt 并同步等待 AI 响应。
-     * <p>sessionKey 同时作为 session 的 title，{@code ensureSession} 保证 session 存在。
+     * 按 sessionKey 发送消息并同步等待 AI 响应。
+     * <p>底层基于会话模型（ensureSession + prompt），对外封装为与 Hermes/OpenClaw 对称的
+     * {@code chatCompletionWithSession} 接口。sessionKey 同时作为 session 的 title，
+     * {@code ensureSession} 保证 session 存在（不存在则创建）。
      * 建议用 {@link io.github.hiwepy.opencode.api.OpenCodeSessionKeys} 生成 sessionKey。</p>
      *
      * @param sessionKey 会话复用 key
      * @param request    prompt 请求
      * @return AI 响应
      */
-    public PromptResult promptByKey(String sessionKey, PromptRequest request) {
-        return httpClient.promptByKey(sessionKey, request);
+    public PromptResult chatCompletionWithSession(String sessionKey, PromptRequest request) {
+        return httpClient.chatCompletionWithSession(sessionKey, request);
     }
 
     /**
-     * 按 sessionKey 发送纯文本 prompt 并同步等待 AI 响应。
+     * 按 sessionKey 发送纯文本消息并同步等待 AI 响应。
      */
-    public PromptResult promptByKey(String sessionKey, String text) {
-        return httpClient.promptByKey(sessionKey, PromptRequest.ofText(text));
+    public PromptResult chatCompletionWithSession(String sessionKey, String text) {
+        return httpClient.chatCompletionWithSession(sessionKey, PromptRequest.ofText(text));
     }
 
     /**
-     * 按 sessionKey 发送纯文本 prompt 并指定模型。
+     * 按 sessionKey 发送纯文本消息并指定模型。
      */
-    public PromptResult promptByKey(String sessionKey, String text, String providerID, String modelID) {
-        return httpClient.promptByKey(sessionKey, PromptRequest.ofText(text, providerID, modelID));
+    public PromptResult chatCompletionWithSession(String sessionKey, String text, String providerID, String modelID) {
+        return httpClient.chatCompletionWithSession(sessionKey, PromptRequest.ofText(text, providerID, modelID));
     }
 
     /**
-     * 按 sessionKey 异步发送 prompt，不等待响应。
+     * 按 sessionKey 异步发送消息，不等待响应。
      */
-    public boolean promptAsyncByKey(String sessionKey, PromptRequest request) {
-        return httpClient.promptAsyncByKey(sessionKey, request);
+    public boolean chatCompletionWithSessionAsync(String sessionKey, PromptRequest request) {
+        return httpClient.chatCompletionWithSessionAsync(sessionKey, request);
     }
 
     /**

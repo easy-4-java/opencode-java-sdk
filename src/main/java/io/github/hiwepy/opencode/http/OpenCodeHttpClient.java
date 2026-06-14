@@ -130,7 +130,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
      * @param request    prompt 请求
      * @return AI 响应
      */
-    public PromptResult promptByKey(String sessionKey, PromptRequest request) {
+    public PromptResult chatCompletionWithSession(String sessionKey, PromptRequest request) {
         String sessionId = ensureSession(sessionKey);
         return prompt(sessionId, request);
     }
@@ -138,7 +138,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     /**
      * 按 sessionKey 异步发送消息，不等待响应。
      */
-    public boolean promptAsyncByKey(String sessionKey, PromptRequest request) {
+    public boolean chatCompletionWithSessionAsync(String sessionKey, PromptRequest request) {
         String sessionId = ensureSession(sessionKey);
         return promptAsync(sessionId, request);
     }
