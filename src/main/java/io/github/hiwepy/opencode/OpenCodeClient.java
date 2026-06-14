@@ -110,6 +110,51 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.prompt(sessionId, PromptRequest.ofText(text, providerID, modelID));
     }
 
+    // ----------------------------------------------------------------
+    // sessionKey 模式（对齐 Hermes/OpenClaw，自动复用/创建 session）
+    // ----------------------------------------------------------------
+
+    /**
+     * 按 sessionKey 发送 prompt 并同步等待 AI 响应。
+     * <p>sessionKey 同时作为 session 的 title，{@code ensureSession} 保证 session 存在。
+     * 建议用 {@link io.github.hiwepy.opencode.api.OpenCodeSessionKeys} 生成 sessionKey。</p>
+     *
+     * @param sessionKey 会话复用 key
+     * @param request    prompt 请求
+     * @return AI 响应
+     */
+    public PromptResult promptByKey(String sessionKey, PromptRequest request) {
+        return httpClient.promptByKey(sessionKey, request);
+    }
+
+    /**
+     * 按 sessionKey 发送纯文本 prompt 并同步等待 AI 响应。
+     */
+    public PromptResult promptByKey(String sessionKey, String text) {
+        return httpClient.promptByKey(sessionKey, PromptRequest.ofText(text));
+    }
+
+    /**
+     * 按 sessionKey 发送纯文本 prompt 并指定模型。
+     */
+    public PromptResult promptByKey(String sessionKey, String text, String providerID, String modelID) {
+        return httpClient.promptByKey(sessionKey, PromptRequest.ofText(text, providerID, modelID));
+    }
+
+    /**
+     * 按 sessionKey 异步发送 prompt，不等待响应。
+     */
+    public boolean promptAsyncByKey(String sessionKey, PromptRequest request) {
+        return httpClient.promptAsyncByKey(sessionKey, request);
+    }
+
+    /**
+     * 确保指定 sessionKey 对应的 session 存在，返回其 sessionId。
+     */
+    public String ensureSession(String sessionKey) {
+        return httpClient.ensureSession(sessionKey);
+    }
+
     /**
      * 异步发送 prompt，不等待响应。
      *

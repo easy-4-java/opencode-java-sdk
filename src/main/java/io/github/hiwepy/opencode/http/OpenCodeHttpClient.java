@@ -122,6 +122,51 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     /**
+     * 按 sessionKey 发送消息并同步等待 AI 响应。
+     * <p>sessionKey 作为 session 的 title，{@code ensureSession} 保证 session 存在（不存在则创建），
+     * 对调用方透明。对齐 Hermes/OpenClaw 的 sessionKey 模式。</p>
+     *
+     * @param sessionKey 会话复用 key（建议用 {@code OpenCodeSessionKeys} 生成）
+     * @param request    prompt 请求
+     * @return AI 响应
+     */
+    public PromptResult promptByKey(String sessionKey, PromptRequest request) {
+        String sessionId = ensureSession(sessionKey);
+        return prompt(sessionId, request);
+    }
+
+    /**
+     * 按 sessionKey 异步发送消息，不等待响应。
+     */
+    public boolean promptAsyncByKey(String sessionKey, PromptRequest request) {
+        String sessionId = ensureSession(sessionKey);
+        return promptAsync(sessionId, request);
+    }
+
+    /**
+     * 确保指定 sessionKey 对应的 session 存在，返回其 sessionId。
+     * <p>先按 title 精确查找现有 session，不存在则创建。对齐 Hermes/OpenClaw 的 sessionKey 语义。</p>
+     *
+     * @param sessionKey 会话复用 key（同时作为 session title）
+     * @return sessionId
+     */
+    public String ensureSession(String sessionKey) {
+        // 先按 title 查找现有 session
+        try {
+            Optional<Session> existing = findSessionByTitle(sessionKey);
+            if (existing.isPresent()) {
+                return existing.get().getId();
+            }
+        } catch (Exception e) {
+            log.debug("findSessionByTitle failed, will create new session, sessionKey={}, error={}",
+                    sessionKey, e.getMessage());
+        }
+        // 不存在则创建
+        Session session = createSession(sessionKey);
+        return session.getId();
+    }
+
+    /**
      * 异步发送消息，不等待响应（POST /session/:id/prompt_async）。
      */
     public boolean promptAsync(String sessionId, PromptRequest request) {
