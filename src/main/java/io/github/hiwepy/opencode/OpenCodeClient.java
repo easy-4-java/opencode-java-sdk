@@ -150,8 +150,152 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.chatCompletionWithSessionAsync(request, sessionKey);
     }
 
+    // ----------------------------------------------------------------
+    // OpenAI 标准 ChatRequest/ChatResponse（对齐 OpenClaw/Hermes）
+    // ----------------------------------------------------------------
+
     /**
-     * 确保指定 sessionKey 对应的 session 存在，返回其 sessionId。
+     * 按 sessionId 发送 OpenAI 标准请求并同步等待响应。
+     * <p>内部自动将 {@link ChatRequest} 转换为 {@link PromptRequest}，
+     * 将 {@link PromptResult} 转换为 {@link ChatResponse}。</p>
+     *
+     * @param sessionId 会话 ID
+     * @param request   OpenAI 标准请求
+     * @return OpenAI 标准响应
+     */
+    public ChatResponse chatCompletion(String sessionId, ChatRequest request) {
+        PromptRequest promptRequest = io.github.hiwepy.opencode.mapper.ChatMessageMapper.toPromptRequest(request);
+        PromptResult result = httpClient.prompt(sessionId, promptRequest);
+        return io.github.hiwepy.opencode.mapper.ChatMessageMapper.toChatResponse(result);
+    }
+
+    /**
+     * 按 sessionKey 发送 OpenAI 标准请求并同步等待响应。
+     * <p>与 OpenClaw/Hermes 的 {@code chatCompletionWithSession(request, sessionKey)} 完全对称。</p>
+     *
+     * @param request    OpenAI 标准请求
+     * @param sessionKey 会话复用 key
+     * @return OpenAI 标准响应
+     */
+    public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey) {
+        PromptRequest promptRequest = io.github.hiwepy.opencode.mapper.ChatMessageMapper.toPromptRequest(request);
+        PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey);
+        return io.github.hiwepy.opencode.mapper.ChatMessageMapper.toChatResponse(result);
+    }
+
+    /**
+     * 按 sessionKey 流式发送消息，返回 {@link ChatStreamingResponse}。
+     * <p>
+     * 内部流程：ensureSession → promptAsync（不阻塞）→ 订阅全局 SSE 事件流 →
+     * 按 sessionId 过滤事件，累积 text delta → session idle 时完成 future。
+     * </p>
+     * <p>与 Hermes 的 {@code chatCompletionStream} 对称，调用方可通过
+     * {@link ChatStreamingResponse#onDelta(Consumer)} 注册增量回调，
+     * 或通过 {@link ChatStreamingResponse#get()} 阻塞等待完整文本。</p>
+     *
+     * @param request    OpenAI 标准请求
+     * @param sessionKey 会话复用 key
+     * @return 流式响应（CompletableFuture，完成时携带完整文本）
+     */
+    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
+        String sessionId = httpClient.ensureSession(sessionKey);
+        PromptRequest promptRequest = io.github.hiwepy.opencode.mapper.ChatMessageMapper.toPromptRequest(request);
+
+        ChatStreamingResponse stream = new ChatStreamingResponse();
+
+        // 订阅全局 SSE，按 sessionId 过滤事件
+        java.util.concurrent.BlockingQueue<io.github.hiwepy.opencode.model.Event> queue = sseClient.subscribeQueue();
+
+        // 异步消费事件
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                long deadline = System.currentTimeMillis() + (config.getLocalTimeoutSeconds() * 1000L);
+                while (!stream.isDone() && System.currentTimeMillis() < deadline) {
+                    io.github.hiwepy.opencode.model.Event event = queue.poll(3, java.util.concurrent.TimeUnit.SECONDS);
+                    if (event == null) {
+                        continue;
+                    }
+
+                    // 按 sessionId 过滤
+                    String eventSessionId = event.getProperties() != null
+                            ? Objects.toString(event.getProperties().get("sessionID"), null) : null;
+                    if (eventSessionId == null || !eventSessionId.equals(sessionId)) {
+                        continue;
+                    }
+
+                    String type = event.getType();
+                    if (type == null) {
+                        continue;
+                    }
+
+                    // text delta 事件
+                    if (type.contains("text.delta") || type.contains("message.part.updated")) {
+                        String delta = extractDeltaText(event);
+                        if (delta != null && !delta.isEmpty()) {
+                            stream.acceptDelta(delta);
+                        }
+                    }
+
+                    // session idle = 完成
+                    if (type.contains("session.status") || type.contains("session.idle")) {
+                        String status = event.getProperties() != null
+                                ? Objects.toString(event.getProperties().get("status"), null) : null;
+                        if ("idle".equals(status) || type.contains("idle")) {
+                            stream.finish();
+                            return;
+                        }
+                    }
+
+                    // session error
+                    if (type.contains("session.error")) {
+                        String error = event.getProperties() != null
+                                ? Objects.toString(event.getProperties().get("error"), "unknown error") : "unknown error";
+                        stream.fail(new RuntimeException(error));
+                        return;
+                    }
+                }
+                if (!stream.isDone()) {
+                    stream.fail(new RuntimeException("Stream timed out for session: " + sessionId));
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                stream.fail(e);
+            } catch (Exception e) {
+                stream.fail(e);
+            }
+        });
+
+        // 触发异步 prompt（不阻塞，SSE 事件驱动结果）
+        httpClient.promptAsync(sessionId, promptRequest);
+
+        return stream;
+    }
+
+    /**
+     * 从事件属性中提取增量文本。
+     */
+    private static String extractDeltaText(io.github.hiwepy.opencode.model.Event event) {
+        if (event.getProperties() == null) {
+            return null;
+        }
+        // 尝试 part.text
+        Object part = event.getProperties().get("part");
+        if (part instanceof Map) {
+            Object text = ((Map<?, ?>) part).get("text");
+            if (text != null) {
+                return text.toString();
+            }
+        }
+        // 尝试 delta
+        Object delta = event.getProperties().get("delta");
+        if (delta != null) {
+            return delta.toString();
+        }
+        return null;
+    }
+
+    /**
+     * 确保 sessionKey 对应的 session 存在，返回其 sessionId。
      */
     public String ensureSession(String sessionKey) {
         return httpClient.ensureSession(sessionKey);
