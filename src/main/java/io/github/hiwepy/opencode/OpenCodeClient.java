@@ -121,33 +121,33 @@ public class OpenCodeClient implements AutoCloseable {
      * {@code ensureSession} 保证 session 存在（不存在则创建）。
      * 建议用 {@link io.github.hiwepy.opencode.api.OpenCodeSessionKeys} 生成 sessionKey。</p>
      *
-     * @param sessionKey 会话复用 key
      * @param request    prompt 请求
+     * @param sessionKey 会话复用 key
      * @return AI 响应
      */
-    public PromptResult chatCompletionWithSession(String sessionKey, PromptRequest request) {
-        return httpClient.chatCompletionWithSession(sessionKey, request);
+    public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey) {
+        return httpClient.chatCompletionWithSession(request, sessionKey);
     }
 
     /**
      * 按 sessionKey 发送纯文本消息并同步等待 AI 响应。
      */
-    public PromptResult chatCompletionWithSession(String sessionKey, String text) {
-        return httpClient.chatCompletionWithSession(sessionKey, PromptRequest.ofText(text));
+    public PromptResult chatCompletionWithSession(String text, String sessionKey) {
+        return httpClient.chatCompletionWithSession(PromptRequest.ofText(text), sessionKey);
     }
 
     /**
      * 按 sessionKey 发送纯文本消息并指定模型。
      */
-    public PromptResult chatCompletionWithSession(String sessionKey, String text, String providerID, String modelID) {
-        return httpClient.chatCompletionWithSession(sessionKey, PromptRequest.ofText(text, providerID, modelID));
+    public PromptResult chatCompletionWithSession(String text, String providerID, String modelID, String sessionKey) {
+        return httpClient.chatCompletionWithSession(PromptRequest.ofText(text, providerID, modelID), sessionKey);
     }
 
     /**
      * 按 sessionKey 异步发送消息，不等待响应。
      */
-    public boolean chatCompletionWithSessionAsync(String sessionKey, PromptRequest request) {
-        return httpClient.chatCompletionWithSessionAsync(sessionKey, request);
+    public boolean chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
+        return httpClient.chatCompletionWithSessionAsync(request, sessionKey);
     }
 
     /**

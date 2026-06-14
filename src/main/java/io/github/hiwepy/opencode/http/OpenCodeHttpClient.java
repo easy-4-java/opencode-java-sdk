@@ -126,11 +126,11 @@ public class OpenCodeHttpClient implements AutoCloseable {
      * <p>sessionKey 作为 session 的 title，{@code ensureSession} 保证 session 存在（不存在则创建），
      * 对调用方透明。对齐 Hermes/OpenClaw 的 sessionKey 模式。</p>
      *
-     * @param sessionKey 会话复用 key（建议用 {@code OpenCodeSessionKeys} 生成）
      * @param request    prompt 请求
+     * @param sessionKey 会话复用 key（建议用 {@code OpenCodeSessionKeys} 生成）
      * @return AI 响应
      */
-    public PromptResult chatCompletionWithSession(String sessionKey, PromptRequest request) {
+    public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey) {
         String sessionId = ensureSession(sessionKey);
         return prompt(sessionId, request);
     }
@@ -138,7 +138,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     /**
      * 按 sessionKey 异步发送消息，不等待响应。
      */
-    public boolean chatCompletionWithSessionAsync(String sessionKey, PromptRequest request) {
+    public boolean chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
         String sessionId = ensureSession(sessionKey);
         return promptAsync(sessionId, request);
     }
