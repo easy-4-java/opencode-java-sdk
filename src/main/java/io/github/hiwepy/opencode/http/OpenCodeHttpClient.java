@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * OpenCode Server HTTP 客户端，封装 REST API。
@@ -66,6 +67,42 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     public List<Session> listSessions() {
         return getList("/session", new GenericType<List<Session>>() {});
+    }
+
+    /**
+     * 分页/过滤列出 sessions，对齐 Hermes {@code listSessions(limit, offset, source, includeChildren)}。
+     * <p>OpenCode Server {@code GET /session} 支持 {@code search}、{@code limit}、{@code start} 查询参数，
+     * 避免全量拉取后再内存过滤。</p>
+     *
+     * @param search 服务端关键字过滤（匹配 title 等），为 null 则不过滤
+     * @param limit  最大返回条数，为 null 则不限制
+     * @param start  分页偏移量，为 null 则从 0 开始
+     * @return 匹配的 session 列表
+     */
+    public List<Session> listSessions(String search, Integer limit, Integer start) {
+        HttpRequest req = unirest.get(url("/session"));
+        if (search != null) req.queryString("search", search);
+        if (limit != null) req.queryString("limit", limit);
+        if (start != null) req.queryString("start", start);
+        HttpResponse<List<Session>> resp = req.asObject(new GenericType<List<Session>>() {});
+        checkSuccess(resp);
+        return resp.getBody();
+    }
+
+    /**
+     * 按 title 精确查找 session，用于「先找现有 session、找不到再创建」的复用场景。
+     * <p>先用 {@code search} 在服务端预过滤（减少传输量），再在客户端精确匹配 title。</p>
+     *
+     * @param title 期望的 session title
+     * @return 命中的第一个 session，未命中返回 {@link Optional#empty()}
+     */
+    public Optional<Session> findSessionByTitle(String title) {
+        if (title == null || title.isEmpty()) {
+            return Optional.empty();
+        }
+        return listSessions(title, 50, null).stream()
+                .filter(s -> Objects.equals(title, s.getTitle()))
+                .findFirst();
     }
 
     public boolean deleteSession(String sessionId) {
@@ -134,11 +171,15 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     private <T> T getList(String path, GenericType<T> genericType) {
         HttpResponse<T> resp = unirest.get(url(path)).asObject(genericType);
+        checkSuccess(resp);
+        return resp.getBody();
+    }
+
+    private void checkSuccess(HttpResponse<?> resp) {
         if (!resp.isSuccess()) {
             throw new OpenCodeHttpException(resp.getStatus(),
                     resp.getBody() != null ? resp.getBody().toString() : "");
         }
-        return resp.getBody();
     }
 
     private <T> T post(String path, Object body, Class<T> type) {

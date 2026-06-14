@@ -67,6 +67,16 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.listSessions();
     }
 
+    /** 分页/过滤列出 sessions（服务端 search/limit/start 过滤）。 */
+    public List<Session> listSessions(String search, Integer limit, Integer start) {
+        return httpClient.listSessions(search, limit, start);
+    }
+
+    /** 按 title 精确查找 session，未命中返回 {@link java.util.Optional#empty()}。 */
+    public java.util.Optional<Session> findSessionByTitle(String title) {
+        return httpClient.findSessionByTitle(title);
+    }
+
     public boolean deleteSession(String sessionId) {
         return httpClient.deleteSession(sessionId);
     }
