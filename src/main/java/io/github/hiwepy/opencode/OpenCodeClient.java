@@ -16,7 +16,7 @@ import java.util.Objects;
  * 三条通信通道相互独立：
  * </p>
  * <ul>
- *     <li><b>HTTP</b>：{@link #prompt} / {@link #promptAsync} / {@link #createSession} 等 — REST API</li>
+ *     <li><b>HTTP</b>：{@link #chatCompletion} / {@link #chatCompletionAsync} / {@link #createSession} 等 — REST API</li>
  *     <li><b>SSE</b>：{@link #sse()} — 事件流</li>
  *     <li><b>CLI</b>：{@link #cli()} — 本地 {@code opencode} 命令封装</li>
  * </ul>
@@ -158,20 +158,20 @@ public class OpenCodeClient implements AutoCloseable {
     }
 
     /**
-     * 异步发送 prompt，不等待响应。
+     * 异步发送消息，不等待响应。
      *
      * @param sessionId 会话 ID
      * @param request   prompt 请求
      * @return 是否成功提交
      */
-    public boolean promptAsync(String sessionId, PromptRequest request) {
+    public boolean chatCompletionAsync(String sessionId, PromptRequest request) {
         return httpClient.promptAsync(sessionId, request);
     }
 
     /**
-     * 快捷方式：异步发送纯文本 prompt。
+     * 快捷方式：异步发送纯文本消息。
      */
-    public boolean promptAsync(String sessionId, String text) {
+    public boolean chatCompletionAsync(String sessionId, String text) {
         return httpClient.promptAsync(sessionId, PromptRequest.ofText(text));
     }
 
