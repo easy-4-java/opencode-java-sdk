@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -58,7 +59,7 @@ public class PromptRequest {
         p.setType("text");
         p.setText(text);
         PromptRequest req = new PromptRequest();
-        req.setParts(List.of(p));
+        req.setParts(Collections.singletonList(p));
         return req;
     }
 

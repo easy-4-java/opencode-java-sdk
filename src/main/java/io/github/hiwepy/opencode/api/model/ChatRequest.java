@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -58,7 +59,7 @@ public class ChatRequest {
     /** 快捷构造：单条 user 消息。 */
     public static ChatRequest ofUser(String content) {
         ChatRequest req = new ChatRequest();
-        req.setMessages(List.of(ChatMessage.user(content)));
+        req.setMessages(Collections.singletonList(ChatMessage.user(content)));
         return req;
     }
 

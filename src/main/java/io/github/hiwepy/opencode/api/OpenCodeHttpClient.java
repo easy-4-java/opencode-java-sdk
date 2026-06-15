@@ -12,6 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,7 +66,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     // ============================================================
 
     public Session createSession(String title) {
-        Map<String, Object> body = title != null ? Map.of("title", title) : Map.of();
+        Map<String, Object> body = title != null ? Collections.singletonMap("title", title) : Collections.emptyMap();
         return post("/session", body, Session.class);
     }
 
