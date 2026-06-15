@@ -1,10 +1,13 @@
 package io.github.hiwepy.opencode;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.hiwepy.opencode.api.mapper.ChatMessageMapper;
+import io.github.hiwepy.opencode.api.model.*;
 import io.github.hiwepy.opencode.cli.OpenCodeCli;
 import io.github.hiwepy.opencode.cli.OpenCodeCliExecutor;
-import io.github.hiwepy.opencode.http.OpenCodeHttpClient;
-import io.github.hiwepy.opencode.http.OpenCodeSseClient;
-import io.github.hiwepy.opencode.model.*;
+import io.github.hiwepy.opencode.api.OpenCodeHttpClient;
+import io.github.hiwepy.opencode.api.OpenCodeSseClient;
+import okhttp3.OkHttpClient;
 
 import java.util.List;
 import java.util.Map;
@@ -31,10 +34,10 @@ public class OpenCodeClient implements AutoCloseable {
     /**
      * 标准构造（自动创建 HTTP、SSE、CLI 客户端）。
      */
-    public OpenCodeClient(OpenCodeClientConfig config) {
+    public OpenCodeClient(OpenCodeClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this.config = Objects.requireNonNull(config, "config");
-        this.httpClient = new OpenCodeHttpClient(config);
-        this.sseClient = new OpenCodeSseClient(config);
+        this.httpClient = new OpenCodeHttpClient(config, objectMapper, httpClient);
+        this.sseClient = new OpenCodeSseClient(config, objectMapper, httpClient);
         this.cli = new OpenCodeCli(new OpenCodeCliExecutor(config));
     }
 
@@ -164,9 +167,9 @@ public class OpenCodeClient implements AutoCloseable {
      * @return OpenAI 标准响应
      */
     public ChatResponse chatCompletion(String sessionId, ChatRequest request) {
-        PromptRequest promptRequest = io.github.hiwepy.opencode.mapper.ChatMessageMapper.toPromptRequest(request);
+        PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         PromptResult result = httpClient.prompt(sessionId, promptRequest);
-        return io.github.hiwepy.opencode.mapper.ChatMessageMapper.toChatResponse(result);
+        return ChatMessageMapper.toChatResponse(result);
     }
 
     /**
@@ -178,9 +181,9 @@ public class OpenCodeClient implements AutoCloseable {
      * @return OpenAI 标准响应
      */
     public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey) {
-        PromptRequest promptRequest = io.github.hiwepy.opencode.mapper.ChatMessageMapper.toPromptRequest(request);
+        PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey);
-        return io.github.hiwepy.opencode.mapper.ChatMessageMapper.toChatResponse(result);
+        return ChatMessageMapper.toChatResponse(result);
     }
 
     /**
@@ -199,19 +202,19 @@ public class OpenCodeClient implements AutoCloseable {
      */
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
         String sessionId = httpClient.ensureSession(sessionKey);
-        PromptRequest promptRequest = io.github.hiwepy.opencode.mapper.ChatMessageMapper.toPromptRequest(request);
+        PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 
         ChatStreamingResponse stream = new ChatStreamingResponse();
 
         // 订阅全局 SSE，按 sessionId 过滤事件
-        java.util.concurrent.BlockingQueue<io.github.hiwepy.opencode.model.Event> queue = sseClient.subscribeQueue();
+        java.util.concurrent.BlockingQueue<Event> queue = sseClient.subscribeQueue();
 
         // 异步消费事件
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
                 long deadline = System.currentTimeMillis() + (config.getLocalTimeoutSeconds() * 1000L);
                 while (!stream.isDone() && System.currentTimeMillis() < deadline) {
-                    io.github.hiwepy.opencode.model.Event event = queue.poll(3, java.util.concurrent.TimeUnit.SECONDS);
+                    Event event = queue.poll(3, java.util.concurrent.TimeUnit.SECONDS);
                     if (event == null) {
                         continue;
                     }
@@ -274,7 +277,7 @@ public class OpenCodeClient implements AutoCloseable {
     /**
      * 从事件属性中提取增量文本。
      */
-    private static String extractDeltaText(io.github.hiwepy.opencode.model.Event event) {
+    private static String extractDeltaText(Event event) {
         if (event.getProperties() == null) {
             return null;
         }

@@ -1,11 +1,10 @@
-package io.github.hiwepy.opencode.mapper;
+package io.github.hiwepy.opencode.api.mapper;
 
-import io.github.hiwepy.opencode.model.ChatMessage;
-import io.github.hiwepy.opencode.model.ChatRequest;
-import io.github.hiwepy.opencode.model.ChatResponse;
-import io.github.hiwepy.opencode.model.Part;
-import io.github.hiwepy.opencode.model.PromptRequest;
-import io.github.hiwepy.opencode.model.PromptResult;
+import io.github.hiwepy.opencode.api.model.ChatMessage;
+import io.github.hiwepy.opencode.api.model.ChatRequest;
+import io.github.hiwepy.opencode.api.model.ChatResponse;
+import io.github.hiwepy.opencode.api.model.PromptRequest;
+import io.github.hiwepy.opencode.api.model.PromptResult;
 
 import java.util.Collections;
 import java.util.List;

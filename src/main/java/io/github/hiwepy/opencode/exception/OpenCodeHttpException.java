@@ -16,4 +16,10 @@ public class OpenCodeHttpException extends OpenCodeException {
         this.statusCode = statusCode;
         this.responseBody = responseBody;
     }
+
+    public OpenCodeHttpException(String message, Throwable cause) {
+        super(message, cause);
+        this.statusCode = -1;
+        this.responseBody = null;
+    }
 }

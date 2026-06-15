@@ -1,4 +1,4 @@
-package io.github.hiwepy.opencode.model;
+package io.github.hiwepy.opencode.api.model;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;

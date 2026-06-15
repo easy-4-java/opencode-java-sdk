@@ -1,4 +1,4 @@
-package io.github.hiwepy.opencode.model;
+package io.github.hiwepy.opencode.api.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;

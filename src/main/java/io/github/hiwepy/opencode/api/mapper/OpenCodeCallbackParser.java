@@ -1,15 +1,12 @@
-package io.github.hiwepy.opencode.mapper;
+package io.github.hiwepy.opencode.api.mapper;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.hiwepy.opencode.model.Part;
-import io.github.hiwepy.opencode.model.PromptResult;
+import io.github.hiwepy.opencode.api.model.PromptResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
