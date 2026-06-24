@@ -1,6 +1,5 @@
 package io.github.hiwepy.opencode.cli;
 
-import io.github.hiwepy.opencode.OpenCodeClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

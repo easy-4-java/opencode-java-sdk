@@ -2,7 +2,7 @@ package io.github.hiwepy.opencode.api;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.hiwepy.opencode.OpenCodeClientConfig;
+import io.github.hiwepy.opencode.OpenCodeHttpClientConfig;
 import io.github.hiwepy.opencode.api.model.Event;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Credentials;
@@ -28,18 +28,18 @@ import java.util.function.Consumer;
 @Slf4j
 public class OpenCodeSseClient implements AutoCloseable {
 
-    private final OpenCodeClientConfig config;
+    private final OpenCodeHttpClientConfig config;
     private final ObjectMapper mapper;
     private final OkHttpClient httpClient;
     private volatile EventSource eventSource;
 
-    public OpenCodeSseClient(OpenCodeClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
+    public OpenCodeSseClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this.config = config;
         this.mapper = Objects.isNull(objectMapper) ? new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false) : objectMapper;
         this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
     }
 
-    private static OkHttpClient buildOkHttpClient(OpenCodeClientConfig config) {
+    private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
         // 兜底创建（SSE 需要无读超时）
         OkHttpClient.Builder builder = new OkHttpClient.Builder()
                 .connectTimeout(config.getConnectTimeoutMillis(), TimeUnit.MILLISECONDS)

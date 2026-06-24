@@ -32,13 +32,54 @@ public class OpenCodeClient implements AutoCloseable {
     private final OpenCodeCli cli;
 
     /**
+     * 使用 HTTP 与 CLI 独立配置构造客户端。
+     */
+    public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig) {
+        this(httpConfig, cliConfig, null, null);
+    }
+
+    /**
+     * 使用 HTTP 与 CLI 独立配置构造客户端，可注入共享 OkHttp 与 ObjectMapper。
+     */
+    public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig,
+                          ObjectMapper objectMapper, OkHttpClient httpClient) {
+        Objects.requireNonNull(httpConfig, "httpConfig");
+        Objects.requireNonNull(cliConfig, "cliConfig");
+        this.config = new OpenCodeClientConfig();
+        this.config.getHttp().setServerUrl(httpConfig.getServerUrl());
+        this.config.getHttp().setUsername(httpConfig.getUsername());
+        this.config.getHttp().setPassword(httpConfig.getPassword());
+        this.config.getHttp().setConnectTimeoutMillis(httpConfig.getConnectTimeoutMillis());
+        this.config.getHttp().setReadTimeoutMillis(httpConfig.getReadTimeoutMillis());
+        this.config.getHttp().setVerifySsl(httpConfig.isVerifySsl());
+        this.config.getHttp().setDefaultModel(httpConfig.getDefaultModel());
+        this.config.getHttp().setDefaultAgent(httpConfig.getDefaultAgent());
+        this.config.getCli().setExecutable(cliConfig.getExecutable());
+        this.config.getCli().setTimeout(cliConfig.getTimeout());
+        this.config.getCli().setProbeTimeoutSeconds(cliConfig.getProbeTimeoutSeconds());
+        this.config.getCli().setWorkingDirectory(cliConfig.getWorkingDirectory());
+        this.config.getCli().setMaxConcurrentExecutions(cliConfig.getMaxConcurrentExecutions());
+        this.httpClient = new OpenCodeHttpClient(httpConfig, objectMapper, httpClient);
+        this.sseClient = new OpenCodeSseClient(httpConfig, objectMapper,
+                httpClient != null ? httpClient : this.httpClient.getOkHttpClient());
+        this.cli = new OpenCodeCli(new OpenCodeCliExecutor(cliConfig));
+    }
+
+    /**
+     * 使用组合配置构造客户端。
+     */
+    public OpenCodeClient(OpenCodeClientConfig config) {
+        this(config, null, null);
+    }
+
+    /**
      * 标准构造（自动创建 HTTP、SSE、CLI 客户端）。
      */
     public OpenCodeClient(OpenCodeClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
-        this.config = Objects.requireNonNull(config, "config");
-        this.httpClient = new OpenCodeHttpClient(config, objectMapper, httpClient);
-        this.sseClient = new OpenCodeSseClient(config, objectMapper, httpClient);
-        this.cli = new OpenCodeCli(new OpenCodeCliExecutor(config));
+        this(Objects.requireNonNull(config, "config").getHttp(),
+                config.getCli(),
+                objectMapper,
+                httpClient);
     }
 
     /**
@@ -212,7 +253,7 @@ public class OpenCodeClient implements AutoCloseable {
         // 异步消费事件
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
-                long deadline = System.currentTimeMillis() + (config.getLocalTimeoutSeconds() * 1000L);
+                long deadline = System.currentTimeMillis() + (config.getCli().getTimeout() * 1000L);
                 while (!stream.isDone() && System.currentTimeMillis() < deadline) {
                     Event event = queue.poll(3, java.util.concurrent.TimeUnit.SECONDS);
                     if (event == null) {

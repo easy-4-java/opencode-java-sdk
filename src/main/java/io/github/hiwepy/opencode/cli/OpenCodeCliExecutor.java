@@ -1,15 +1,16 @@
 package io.github.hiwepy.opencode.cli;
 
-import io.github.hiwepy.opencode.OpenCodeClientConfig;
+import io.github.hiwepy.opencode.OpenCodeCliConfig;
 import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecuteResultHandler;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * 本地 {@code opencode} CLI 子进程执行器。
@@ -18,17 +19,20 @@ public class OpenCodeCliExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(OpenCodeCliExecutor.class);
 
-    private final OpenCodeClientConfig config;
+    private final OpenCodeCliConfig config;
 
-    public OpenCodeCliExecutor(OpenCodeClientConfig config) {
-        this.config = config;
+    /**
+     * @param config CLI 配置，不得为 null
+     */
+    public OpenCodeCliExecutor(OpenCodeCliConfig config) {
+        this.config = Objects.requireNonNull(config, "config");
     }
 
     /**
      * 同步执行 CLI 命令，返回执行结果。
      */
     public OpenCodeCliResult execute(String... args) {
-        CommandLine cmd = CommandLine.parse(config.getLocalExecutable());
+        CommandLine cmd = CommandLine.parse(config.getExecutable());
         for (String arg : args) {
             cmd.addArgument(arg);
         }
@@ -38,7 +42,12 @@ public class OpenCodeCliExecutor {
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
         executor.setStreamHandler(new org.apache.commons.exec.PumpStreamHandler(stdout, stderr));
 
-        long timeoutMs = config.getLocalTimeoutSeconds() * 1000L;
+        File workingDirectory = resolveWorkingDirectory();
+        if (workingDirectory != null) {
+            executor.setWorkingDirectory(workingDirectory);
+        }
+
+        long timeoutMs = config.getTimeout() * 1000L;
         ExecuteWatchdog watchdog = new ExecuteWatchdog(timeoutMs);
         executor.setWatchdog(watchdog);
 
@@ -58,10 +67,33 @@ public class OpenCodeCliExecutor {
      */
     public boolean probe() {
         try {
-            OpenCodeCliResult result = execute("--version");
+            OpenCodeCliConfig probeConfig = copyForProbe(config);
+            OpenCodeCliResult result = new OpenCodeCliExecutor(probeConfig).execute("--version");
             return result.isSuccess();
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private static OpenCodeCliConfig copyForProbe(OpenCodeCliConfig source) {
+        OpenCodeCliConfig copy = new OpenCodeCliConfig();
+        copy.setExecutable(source.getExecutable());
+        copy.setWorkingDirectory(source.getWorkingDirectory());
+        copy.setMaxConcurrentExecutions(source.getMaxConcurrentExecutions());
+        int probeSec = source.getProbeTimeoutSeconds();
+        if (probeSec <= 0) {
+            probeSec = 5;
+        }
+        copy.setTimeout(probeSec);
+        copy.setProbeTimeoutSeconds(probeSec);
+        return copy;
+    }
+
+    private File resolveWorkingDirectory() {
+        String dir = config.getWorkingDirectory();
+        if (dir == null || dir.trim().isEmpty()) {
+            return null;
+        }
+        return new File(dir.trim());
     }
 }

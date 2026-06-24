@@ -3,7 +3,7 @@ package io.github.hiwepy.opencode.api;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.hiwepy.opencode.OpenCodeClientConfig;
+import io.github.hiwepy.opencode.OpenCodeHttpClientConfig;
 import io.github.hiwepy.opencode.api.model.*;
 import io.github.hiwepy.opencode.exception.OpenCodeHttpException;
 import lombok.extern.slf4j.Slf4j;
@@ -31,18 +31,18 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
 
-    private final OpenCodeClientConfig config;
+    private final OpenCodeHttpClientConfig config;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
 
-    public OpenCodeHttpClient(OpenCodeClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
+    public OpenCodeHttpClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this.config = Objects.requireNonNull(config, "config");
         this.objectMapper = Objects.isNull(objectMapper) ? new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false): objectMapper;
         this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
     }
 
-    private static OkHttpClient buildOkHttpClient(OpenCodeClientConfig config) {
+    private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
         // 兜底创建
         OkHttpClient.Builder builder = new OkHttpClient.Builder()
                 .connectTimeout(config.getConnectTimeoutMillis(), TimeUnit.MILLISECONDS)
