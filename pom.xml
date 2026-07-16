@@ -5,13 +5,8 @@
 
     <groupId>io.github.hiwepy</groupId>
     <artifactId>opencode-java-sdk</artifactId>
-<<<<<<< HEAD
     <description>OpenCode Java SDK - JDK 21 line</description>
     <version>3.0.x.20260630-SNAPSHOT</version>
-=======
-    <description>OpenCode Java SDK - JDK 17 line</description>
-    <version>2.0.x.20260630-SNAPSHOT</version>
->>>>>>> main
     <name>${project.groupId}:${project.artifactId}</name>
     <url>https://github.com/hiwepy/${project.artifactId}</url>
     <packaging>jar</packaging>
@@ -66,11 +61,7 @@
     </distributionManagement>
 
     <properties>
-<<<<<<< HEAD
         <java.version>21</java.version>
-=======
-        <java.version>17</java.version>
->>>>>>> main
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -79,13 +70,8 @@
 
         <!-- Dependencies -->
         <okhttp.version>5.4.0</okhttp.version>
-<<<<<<< HEAD
         <jackson.version>2.22.1</jackson.version>
         <slf4j.version>2.1.0</slf4j.version>
-=======
-        <jackson.version>2.22.0</jackson.version>
-        <slf4j.version>2.0.18</slf4j.version>
->>>>>>> main
         <lombok.version>1.18.46</lombok.version>
         <commons-exec.version>1.4.0</commons-exec.version>
         <junit.version>5.11.4</junit.version>
@@ -469,14 +455,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
             </plugin>
-<<<<<<< HEAD
             <!-- 中央仓库发布插件：通过Central Publishing Portal发布 -->
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
             </plugin>
-=======
->>>>>>> main
         </plugins>
     </build>
 
