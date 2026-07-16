@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -110,6 +111,81 @@ public class OpenCodeSseClient implements AutoCloseable {
         BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
         subscribe(queue::add, context);
         return queue;
+    }
+
+    /**
+     * 订阅 SSE，仅消费指定 session 的事件。
+     *
+     * @param sessionId 目标 session ID（{@code null} 表示不过滤）
+     * @param consumer  事件消费者（已按 sessionID 过滤）
+     * @return EventSource
+     */
+    public EventSource subscribeSession(String sessionId, Consumer<Event> consumer) {
+        return subscribeSession(sessionId, consumer, null);
+    }
+
+    public EventSource subscribeSession(String sessionId, Consumer<Event> consumer,
+                                        OpenCodeRequestContext context) {
+        return subscribe(filterBySession(sessionId, consumer), context);
+    }
+
+    /**
+     * 订阅 SSE，仅消费指定事件类型集合中的事件。
+     *
+     * @param types     事件类型白名单（如 {@code "message.part.updated"}、{@code "session.idle"}）
+     * @param consumer  事件消费者
+     */
+    public EventSource subscribeEventTypes(Set<String> types, Consumer<Event> consumer) {
+        return subscribeEventTypes(types, consumer, null);
+    }
+
+    public EventSource subscribeEventTypes(Set<String> types, Consumer<Event> consumer,
+                                           OpenCodeRequestContext context) {
+        return subscribe(filterByTypes(types, consumer), context);
+    }
+
+    /**
+     * 订阅 SSE，使用 {@link io.github.hiwepy.opencode.api.event.EventHandler} 类型化回调。
+     * 事件先按 sessionId 过滤（如果非 null），再分发到 handler 的对应方法。
+     */
+    public EventSource subscribeHandler(String sessionId,
+                                        io.github.hiwepy.opencode.api.event.EventHandler handler) {
+        return subscribeHandler(sessionId, handler, null);
+    }
+
+    public EventSource subscribeHandler(String sessionId,
+                                        io.github.hiwepy.opencode.api.event.EventHandler handler,
+                                        OpenCodeRequestContext context) {
+        if (handler == null) {
+            throw new IllegalArgumentException("handler must not be null");
+        }
+        return subscribe(filterBySession(sessionId, handler::onEvent), context);
+    }
+
+    private static Consumer<Event> filterBySession(String sessionId, Consumer<Event> delegate) {
+        if (sessionId == null) {
+            return delegate;
+        }
+        return event -> {
+            if (event == null || event.getProperties() == null) {
+                return;
+            }
+            Object sid = event.getProperties().get("sessionID");
+            if (sessionId.equals(sid)) {
+                delegate.accept(event);
+            }
+        };
+    }
+
+    private static Consumer<Event> filterByTypes(Set<String> types, Consumer<Event> delegate) {
+        if (types == null || types.isEmpty()) {
+            return delegate;
+        }
+        return event -> {
+            if (event != null && event.getType() != null && types.contains(event.getType())) {
+                delegate.accept(event);
+            }
+        };
     }
 
     private Request buildRequest(OpenCodeRequestContext context) {

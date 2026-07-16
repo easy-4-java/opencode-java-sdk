@@ -415,6 +415,41 @@ public class OpenCodeClient implements AutoCloseable {
         return sseClient;
     }
 
+    /**
+     * {@code sse()} 的别名，等价。
+     */
+    public OpenCodeSseClient eventStream() {
+        return sseClient;
+    }
+
+    /**
+     * 订阅指定 session 的事件，使用类型化 {@link io.github.hiwepy.opencode.api.event.EventHandler}。
+     *
+     * @return EventSource，可调用 cancel() 停止订阅
+     */
+    public okhttp3.sse.EventSource onSessionEvent(String sessionId,
+            io.github.hiwepy.opencode.api.event.EventHandler handler) {
+        return sseClient.subscribeHandler(sessionId, handler);
+    }
+
+    /**
+     * 订阅全局事件流（不按 session 过滤），使用类型化 handler。
+     */
+    public okhttp3.sse.EventSource onEvent(
+            io.github.hiwepy.opencode.api.event.EventHandler handler) {
+        return sseClient.subscribeHandler(null, handler);
+    }
+
+    /**
+     * 订阅特定事件类型集合。
+     *
+     * @param types 事件类型白名单
+     */
+    public okhttp3.sse.EventSource onEventTypes(java.util.Set<String> types,
+            java.util.function.Consumer<Event> consumer) {
+        return sseClient.subscribeEventTypes(types, consumer);
+    }
+
     // ============================================================
     // CLI
     // ============================================================
@@ -432,6 +467,415 @@ public class OpenCodeClient implements AutoCloseable {
 
     public OpenCodeClientConfig getConfig() {
         return config;
+    }
+
+    // ============================================================
+    // Config（HTTP 层，独立于上面的 getConfig() OpenCodeClientConfig）
+    // ============================================================
+
+    public OpenCodeConfig getOpenCodeConfig() {
+        return httpClient.getConfig();
+    }
+
+    public OpenCodeConfig getGlobalOpenCodeConfig() {
+        return httpClient.getGlobalConfig();
+    }
+
+    public OpenCodeConfig updateOpenCodeConfig(Object body) {
+        return httpClient.updateConfig(body);
+    }
+
+    public OpenCodeConfig updateGlobalOpenCodeConfig(Object body) {
+        return httpClient.updateGlobalConfig(body);
+    }
+
+    public ProviderList getConfigProviders() {
+        return httpClient.getConfigProviders();
+    }
+
+    // ============================================================
+    // Project
+    // ============================================================
+
+    public List<Project> listProjects() {
+        return httpClient.listProjects();
+    }
+
+    public Project getCurrentProject() {
+        return httpClient.getCurrentProject();
+    }
+
+    public Project updateProject(String projectId, Object body) {
+        return httpClient.updateProject(projectId, body);
+    }
+
+    public boolean initProjectGit() {
+        return httpClient.initProjectGit();
+    }
+
+    // ============================================================
+    // Provider
+    // ============================================================
+
+    public ProviderList listProviders() {
+        return httpClient.listProviders();
+    }
+
+    public Map<String, List<ProviderAuthMethod>> listProviderAuthMethods() {
+        return httpClient.listProviderAuthMethods();
+    }
+
+    public ProviderAuthAuthorization providerOAuthAuthorize(String providerId, String method) {
+        return httpClient.providerOAuthAuthorize(providerId, method);
+    }
+
+    public boolean providerOAuthCallback(String providerId, String code) {
+        return httpClient.providerOAuthCallback(providerId, code);
+    }
+
+    // ============================================================
+    // File / Find
+    // ============================================================
+
+    public List<FileNode> listFiles(String path) {
+        return httpClient.listFiles(path);
+    }
+
+    public FileContent getFileContent(String path) {
+        return httpClient.getFileContent(path);
+    }
+
+    public List<FileNode> getFileStatus() {
+        return httpClient.getFileStatus();
+    }
+
+    public List<FileSearchResult> find(String pattern) {
+        return httpClient.find(pattern);
+    }
+
+    public List<String> findFiles(String query) {
+        return httpClient.findFiles(query);
+    }
+
+    public List<Symbol> findSymbols(String query) {
+        return httpClient.findSymbols(query);
+    }
+
+    // ============================================================
+    // Misc (Command / Skill / Formatter / Lsp / MCP / Path / VCS)
+    // ============================================================
+
+    public List<Command> listCommands() {
+        return httpClient.listCommands();
+    }
+
+    public List<Skill> listSkills() {
+        return httpClient.listSkills();
+    }
+
+    public List<FormatterStatus> listFormatters() {
+        return httpClient.listFormatters();
+    }
+
+    public List<LspStatus> listLsps() {
+        return httpClient.listLsps();
+    }
+
+    public Map<String, McpStatus> listMcpServers() {
+        return httpClient.listMcpServers();
+    }
+
+    public McpStatus addMcpServer(String name, Object config) {
+        return httpClient.addMcpServer(name, config);
+    }
+
+    public OpenCodePath getPath() {
+        return httpClient.getPath();
+    }
+
+    public VcsInfo getVcs() {
+        return httpClient.getVcs();
+    }
+
+    // ============================================================
+    // Session extended
+    // ============================================================
+
+    public Map<String, SessionStatus> getSessionStatusMap() {
+        return httpClient.getSessionStatusMap();
+    }
+
+    public List<Session> getSessionChildren(String sessionId) {
+        return httpClient.getSessionChildren(sessionId);
+    }
+
+    public List<SessionTodo> getSessionTodo(String sessionId) {
+        return httpClient.getSessionTodo(sessionId);
+    }
+
+    public List<FileDiff> getSessionDiff(String sessionId, String messageId) {
+        return httpClient.getSessionDiff(sessionId, messageId);
+    }
+
+    public Session shareSession(String sessionId) {
+        return httpClient.shareSession(sessionId);
+    }
+
+    public Session unshareSession(String sessionId) {
+        return httpClient.unshareSession(sessionId);
+    }
+
+    public Session forkSession(String sessionId, String messageId) {
+        return httpClient.forkSession(sessionId, messageId);
+    }
+
+    public boolean initSession(String sessionId, String messageId, String providerId, String modelId) {
+        return httpClient.initSession(sessionId, messageId, providerId, modelId);
+    }
+
+    public boolean summarizeSession(String sessionId, String providerId, String modelId) {
+        return httpClient.summarizeSession(sessionId, providerId, modelId);
+    }
+
+    public boolean revertSession(String sessionId, String messageId, String partId) {
+        return httpClient.revertSession(sessionId, messageId, partId);
+    }
+
+    public boolean unrevertSession(String sessionId) {
+        return httpClient.unrevertSession(sessionId);
+    }
+
+    public MessageInfo getMessage(String sessionId, String messageId) {
+        return httpClient.getMessage(sessionId, messageId);
+    }
+
+    public PromptResult runSessionCommand(String sessionId, String command, String arguments,
+                                          String agent, String model) {
+        return httpClient.runSessionCommand(sessionId, command, arguments, agent, model);
+    }
+
+    // ============================================================
+    // Question
+    // ============================================================
+
+    public List<QuestionRequest> listQuestions() {
+        return httpClient.listQuestions();
+    }
+
+    public boolean replyQuestion(String requestId, List<String> answers) {
+        return httpClient.replyQuestion(requestId, answers);
+    }
+
+    public boolean rejectQuestion(String requestId) {
+        return httpClient.rejectQuestion(requestId);
+    }
+
+    // ============================================================
+    // Permission
+    // ============================================================
+
+    public List<PermissionRequest> listPermissions() {
+        return httpClient.listPermissions();
+    }
+
+    public boolean replyPermission(String requestId, String response, boolean remember) {
+        return httpClient.replyPermission(requestId, response, remember);
+    }
+
+    // ============================================================
+    // Auth
+    // ============================================================
+
+    public boolean setAuth(String providerId, Object body) {
+        return httpClient.setAuth(providerId, body);
+    }
+
+    public boolean removeAuth(String providerId) {
+        return httpClient.removeAuth(providerId);
+    }
+
+    // ============================================================
+    // Instance / Global lifecycle
+    // ============================================================
+
+    public boolean disposeInstance() {
+        return httpClient.disposeInstance();
+    }
+
+    public boolean globalDispose() {
+        return httpClient.globalDispose();
+    }
+
+    public boolean globalUpgrade(String target) {
+        return httpClient.globalUpgrade(target);
+    }
+
+    // ============================================================
+    // CLI facade（cliServe、cliWeb 等是新增的便捷别名，与 cli().serve() 等价）
+    // ============================================================
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliServe() {
+        return cli.serve(null, null);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliServe(Integer port, String hostname) {
+        return cli.serve(port, hostname);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliWeb() {
+        return cli.web(null, null);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliWeb(Integer port, String hostname) {
+        return cli.web(port, hostname);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAcp(String cwd) {
+        return cli.acp(cwd);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliGenerate() {
+        return cli.generate();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAttach(String url, String dir,
+                                                                     String sessionId,
+                                                                     String username, String password) {
+        return cli.attach(url, dir, sessionId, username, password);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliUpgrade() {
+        return cli.upgrade();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliUpgrade(String target, String method) {
+        return cli.upgrade(target, method);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliUninstall(boolean keepConfig,
+                                                                         boolean keepData,
+                                                                         boolean dryRun,
+                                                                         boolean force) {
+        return cli.uninstall(keepConfig, keepData, dryRun, force);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliStats() {
+        return cli.stats(null, null, null, null);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliStats(Integer days, Integer tools,
+                                                                    Integer models, String project) {
+        return cli.stats(days, tools, models, project);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliExport(String sessionId, boolean sanitize) {
+        return cli.export(sessionId, sanitize);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliImport(String fileOrUrl) {
+        return cli.importSession(fileOrUrl);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliSessionList() {
+        return cli.sessionList();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliSessionList(int maxCount) {
+        return cli.sessionList(maxCount);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAgentList() {
+        return cli.agentList();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAgentCreate(String path,
+                                                                           String description,
+                                                                           String mode,
+                                                                           String permissions,
+                                                                           String model) {
+        return cli.agentCreate(path, description, mode, permissions, model);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliModels() {
+        return cli.models();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliModels(String provider, boolean verbose,
+                                                                    boolean refresh) {
+        return cli.models(provider, verbose, refresh);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliProvidersList() {
+        return cli.providersList();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliProvidersLogin(String provider,
+                                                                             String method) {
+        return cli.providersLogin(provider, method);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliProvidersLogout(String provider) {
+        return cli.providersLogout(provider);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAuthList() {
+        return cli.authList();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAuthLogin(String provider, String method) {
+        return cli.authLogin(provider, method);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliAuthLogout(String provider) {
+        return cli.authLogout(provider);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliMcpList() {
+        return cli.mcpList();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliMcpAdd(String name, String url) {
+        return cli.mcpAdd(name, url);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliMcpLogout(String name) {
+        return cli.mcpLogout(name);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliMcpAuth(String name) {
+        return cli.mcpAuth(name);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliDb(String query, String format) {
+        return cli.db(query, format);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliDbPath() {
+        return cli.dbPath();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliDebugConfig() {
+        return cli.debugConfig();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliDebugPaths() {
+        return cli.debugPaths();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliDebugInfo() {
+        return cli.debugInfo();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliGithubInstall() {
+        return cli.githubInstall();
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliGithubRun(String event, String token) {
+        return cli.githubRun(event, token);
+    }
+
+    public io.github.hiwepy.opencode.cli.OpenCodeCliResult cliPr(int number) {
+        return cli.pr(number);
     }
 
     // ============================================================
