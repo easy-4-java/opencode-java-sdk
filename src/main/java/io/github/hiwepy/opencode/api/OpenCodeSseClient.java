@@ -58,7 +58,11 @@ public class OpenCodeSseClient implements AutoCloseable {
      * @return EventSource（可用于 cancel）
      */
     public EventSource subscribe(Consumer<Event> consumer) {
-        Request request = buildRequest();
+        return subscribe(consumer, null);
+    }
+
+    public EventSource subscribe(Consumer<Event> consumer, OpenCodeRequestContext context) {
+        Request request = buildRequest(context);
         EventSourceListener listener = new EventSourceListener() {
             @Override
             public void onOpen(EventSource es, Response response) {
@@ -99,12 +103,16 @@ public class OpenCodeSseClient implements AutoCloseable {
      * 阻塞式订阅，返回一个 BlockingQueue，事件入队供外部消费。
      */
     public BlockingQueue<Event> subscribeQueue() {
+        return subscribeQueue(null);
+    }
+
+    public BlockingQueue<Event> subscribeQueue(OpenCodeRequestContext context) {
         BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
-        subscribe(queue::add);
+        subscribe(queue::add, context);
         return queue;
     }
 
-    private Request buildRequest() {
+    private Request buildRequest(OpenCodeRequestContext context) {
         String url = config.getServerUrl() + "/event";
         Request.Builder builder = new Request.Builder().url(url)
                 .header("Accept", "text/event-stream")
@@ -112,6 +120,10 @@ public class OpenCodeSseClient implements AutoCloseable {
         String password = config.resolvePassword();
         if (!password.isEmpty()) {
             builder.header("Authorization", Credentials.basic(config.getUsername(), password));
+        }
+        if (Objects.nonNull(context) && context.getDirectory() != null
+                && !context.getDirectory().trim().isEmpty()) {
+            builder.header("X-OpenCode-Directory", context.getDirectory());
         }
         return builder.build();
     }
