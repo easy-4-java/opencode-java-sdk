@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class OpenCodeHttpClient implements AutoCloseable {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final String HEADER_OPENCODE_DIRECTORY = "X-OpenCode-Directory";
 
     private final OpenCodeHttpClientConfig config;
     private final OkHttpClient httpClient;
@@ -66,8 +67,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
     // ============================================================
 
     public Session createSession(String title) {
+        return createSession(title, null);
+    }
+
+    public Session createSession(String title, OpenCodeRequestContext context) {
         Map<String, Object> body = title != null ? Collections.singletonMap("title", title) : Collections.emptyMap();
-        return post("/session", body, Session.class);
+        return post("/session", body, Session.class, context);
     }
 
     public Session getSession(String sessionId) {
@@ -87,11 +92,16 @@ public class OpenCodeHttpClient implements AutoCloseable {
      * @return 匹配的 session 列表
      */
     public List<Session> listSessions(String search, Integer limit, Integer start) {
+        return listSessions(search, limit, start, null);
+    }
+
+    public List<Session> listSessions(String search, Integer limit, Integer start,
+                                      OpenCodeRequestContext context) {
         HttpUrl.Builder urlBuilder = HttpUrl.get(url("/session")).newBuilder();
         if (search != null) urlBuilder.addQueryParameter("search", search);
         if (limit != null) urlBuilder.addQueryParameter("limit", String.valueOf(limit));
         if (start != null) urlBuilder.addQueryParameter("start", String.valueOf(start));
-        Request request = authedRequest(urlBuilder.build().toString()).get().build();
+        Request request = authedRequest(urlBuilder.build().toString(), context).get().build();
         return executeList(request, new TypeReference<List<Session>>() {});
     }
 
@@ -99,10 +109,14 @@ public class OpenCodeHttpClient implements AutoCloseable {
      * 按 title 精确查找 session。
      */
     public Optional<Session> findSessionByTitle(String title) {
+        return findSessionByTitle(title, null);
+    }
+
+    public Optional<Session> findSessionByTitle(String title, OpenCodeRequestContext context) {
         if (title == null || title.isEmpty()) {
             return Optional.empty();
         }
-        return listSessions(title, 50, null).stream()
+        return listSessions(title, 50, null, context).stream()
                 .filter(s -> Objects.equals(title, s.getTitle()))
                 .findFirst();
     }
@@ -136,22 +150,30 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     public String ensureSession(String sessionKey) {
+        return ensureSession(sessionKey, null);
+    }
+
+    public String ensureSession(String sessionKey, OpenCodeRequestContext context) {
         try {
-            Optional<Session> existing = findSessionByTitle(sessionKey);
+            Optional<Session> existing = findSessionByTitle(sessionKey, context);
             if (existing.isPresent()) {
                 return existing.get().getId();
             }
         } catch (Exception e) {
             log.debug("findSessionByTitle failed, sessionKey={}, error={}", sessionKey, e.getMessage());
         }
-        Session session = createSession(sessionKey);
+        Session session = createSession(sessionKey, context);
         return session.getId();
     }
 
     public boolean promptAsync(String sessionId, PromptRequest request) {
+        return promptAsync(sessionId, request, null);
+    }
+
+    public boolean promptAsync(String sessionId, PromptRequest request, OpenCodeRequestContext context) {
         try {
             RequestBody body = RequestBody.create(objectMapper.writeValueAsBytes(request), JSON);
-            Request httpReq = new Request.Builder().url(url("/session/" + sessionId + "/prompt_async"))
+            Request httpReq = authedRequest(url("/session/" + sessionId + "/prompt_async"), context)
                     .post(body).build();
             try (Response response = httpClient.newCall(httpReq).execute()) {
                 return response.isSuccessful();
@@ -206,11 +228,19 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private Request.Builder authedRequest(String url) {
+        return authedRequest(url, null);
+    }
+
+    private Request.Builder authedRequest(String url, OpenCodeRequestContext context) {
         Request.Builder builder = new Request.Builder().url(url);
         String password = config.resolvePassword();
         if (!password.isEmpty()) {
             String credential = Credentials.basic(config.getUsername(), password);
             builder.header("Authorization", credential);
+        }
+        if (Objects.nonNull(context) && context.getDirectory() != null
+                && !context.getDirectory().trim().isEmpty()) {
+            builder.header(HEADER_OPENCODE_DIRECTORY, context.getDirectory());
         }
         return builder;
     }
@@ -228,7 +258,11 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
 
     private <T> T post(String path, Object body, Class<T> type) {
-        Request request = authedRequest(url(path))
+        return post(path, body, type, null);
+    }
+
+    private <T> T post(String path, Object body, Class<T> type, OpenCodeRequestContext context) {
+        Request request = authedRequest(url(path), context)
                 .post(RequestBody.create(toJson(body), JSON))
                 .build();
         return execute(request, type);

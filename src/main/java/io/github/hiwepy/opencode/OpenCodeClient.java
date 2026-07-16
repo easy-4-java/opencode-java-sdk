@@ -6,6 +6,7 @@ import io.github.hiwepy.opencode.api.model.*;
 import io.github.hiwepy.opencode.cli.OpenCodeCli;
 import io.github.hiwepy.opencode.cli.OpenCodeCliExecutor;
 import io.github.hiwepy.opencode.api.OpenCodeHttpClient;
+import io.github.hiwepy.opencode.api.OpenCodeRequestContext;
 import io.github.hiwepy.opencode.api.OpenCodeSseClient;
 import okhttp3.OkHttpClient;
 
@@ -242,13 +243,26 @@ public class OpenCodeClient implements AutoCloseable {
      * @return 流式响应（CompletableFuture，完成时携带完整文本）
      */
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
-        String sessionId = httpClient.ensureSession(sessionKey);
+        return chatCompletionStream(request, sessionKey, null);
+    }
+
+    /**
+     * 在指定 OpenCode 工作目录中按 sessionKey 流式发送消息。
+     *
+     * @param request 请求
+     * @param sessionKey 稳定会话键
+     * @param context 包含受控工作目录的请求上下文
+     * @return 流式响应
+     */
+    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+                                                       OpenCodeRequestContext context) {
+        String sessionId = httpClient.ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 
         ChatStreamingResponse stream = new ChatStreamingResponse();
 
         // 订阅全局 SSE，按 sessionId 过滤事件
-        java.util.concurrent.BlockingQueue<Event> queue = sseClient.subscribeQueue();
+        java.util.concurrent.BlockingQueue<Event> queue = sseClient.subscribeQueue(context);
 
         // 异步消费事件
         java.util.concurrent.CompletableFuture.runAsync(() -> {
@@ -310,7 +324,7 @@ public class OpenCodeClient implements AutoCloseable {
         });
 
         // 触发异步 prompt（不阻塞，SSE 事件驱动结果）
-        httpClient.promptAsync(sessionId, promptRequest);
+        httpClient.promptAsync(sessionId, promptRequest, context);
 
         return stream;
     }
