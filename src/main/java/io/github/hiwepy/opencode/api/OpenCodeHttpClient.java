@@ -97,12 +97,6 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     public List<Session> listSessions(String search, Integer limit, Integer start,
                                       OpenCodeRequestContext context) {
-<<<<<<< HEAD
-        HttpUrl.Builder urlBuilder = HttpUrl.get(url("/session")).newBuilder();
-        if (search != null) urlBuilder.addQueryParameter("search", search);
-        if (limit != null) urlBuilder.addQueryParameter("limit", String.valueOf(limit));
-        if (start != null) urlBuilder.addQueryParameter("start", String.valueOf(start));
-=======
         Map<String, String> params = new HashMap<>();
         if (search != null) params.put("search", search);
         if (limit != null) params.put("limit", String.valueOf(limit));
@@ -112,7 +106,6 @@ public class OpenCodeHttpClient implements AutoCloseable {
         for (Map.Entry<String, String> entry : params.entrySet()) {
             urlBuilder.addQueryParameter(entry.getKey(), entry.getValue());
         }
->>>>>>> main
         Request request = authedRequest(urlBuilder.build().toString(), context).get().build();
         return executeList(request, new TypeReference<List<Session>>() {});
     }
