@@ -6,7 +6,7 @@
 - **SSE 事件流**：消费 `GET /event` 实时事件
 - **本地 CLI**：封装 `opencode run`、`opencode session` 等子命令
 
-三条通道互不降级。入口类 [`OpenCodeClient`](src/main/java/io/github/hiwepy/opencode/OpenCodeClient.java)。
+三条通道互不降级。入口类 [`OpenCodeClient`](src/main/java/io/github/easy4j/opencode/OpenCodeClient.java)。
 
 > 当前 SDK 适配 opencode **v1.17.18** CLI + Server HTTP API。
 >
