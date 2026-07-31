@@ -20,7 +20,7 @@ public class OpenCodeHttpClientConfig {
     /**
      * 启动时是否探测 HTTP 服务可用性（{@code GET /global/health}）。
      */
-    private boolean startupCheckEnabled = true;
+    private boolean startupCheckEnabled = false;
 
     /**
      * HTTP 服务不可用时是否快速失败（中断构造）。
