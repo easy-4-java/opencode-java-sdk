@@ -1,0 +1,29 @@
+package io.github.easy4j.opencode.api.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+
+import java.util.List;
+
+/**
+ * ripgrep 文本搜索结果，对应 {@code GET /find} 响应元素。
+ */
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class FileSearchResult {
+
+    private String path;
+
+    /** 匹配所在行内容 */
+    private List<String> lines;
+
+    @JsonProperty("line_number")
+    private Integer lineNumber;
+
+    @JsonProperty("absolute_offset")
+    private Integer absoluteOffset;
+
+    /** 子匹配（命中片段） */
+    private List<Object> submatches;
+}
