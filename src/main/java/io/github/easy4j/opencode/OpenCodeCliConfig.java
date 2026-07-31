@@ -12,6 +12,23 @@ import lombok.Data;
 public class OpenCodeCliConfig {
 
     /**
+     * 是否启用本地 CLI 子系统。
+     * <p>为 false 时跳过 CLI 相关初始化和检查。</p>
+     */
+    private boolean enabled = true;
+
+    /**
+     * 启动时是否探测 {@code opencode --version}。
+     */
+    private boolean startupCheckEnabled = true;
+
+    /**
+     * CLI 不可用时是否快速失败（中断构造）。
+     * <p>默认 false 仅打 WARN；生产环境建议设为 true。</p>
+     */
+    private boolean failFastOnUnavailable = false;
+
+    /**
      * 本地可执行文件名或绝对路径。
      */
     private String executable = "opencode";

@@ -5,9 +5,11 @@ import io.github.easy4j.opencode.api.mapper.ChatMessageMapper;
 import io.github.easy4j.opencode.api.model.*;
 import io.github.easy4j.opencode.cli.OpenCodeCli;
 import io.github.easy4j.opencode.cli.OpenCodeCliExecutor;
+import io.github.easy4j.opencode.cli.availability.OpenCodeCliAvailabilityReport;
 import io.github.easy4j.opencode.api.OpenCodeHttpClient;
 import io.github.easy4j.opencode.api.OpenCodeRequestContext;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 
 import java.util.List;
@@ -17,14 +19,29 @@ import java.util.Objects;
 /**
  * OpenCode 客户端门面：HTTP Server + SSE 事件流 + 本地 CLI。
  * <p>
- * 三条通信通道相互独立：
+ * 三条通信通道相互独立，按各自子配置的 {@code enabled} 决定是否创建：
  * </p>
  * <ul>
- *     <li><b>HTTP</b>：{@link #chatCompletion} / {@link #chatCompletionAsync} / {@link #createSession} 等 — REST API</li>
- *     <li><b>SSE</b>：{@link #sse()} — 事件流</li>
- *     <li><b>CLI</b>：{@link #cli()} — 本地 {@code opencode} 命令封装</li>
+ *     <li>{@link OpenCodeHttpClientConfig#isEnabled()} = false → HTTP / SSE 子客户端为 {@code null}</li>
+ *     <li>{@link OpenCodeCliConfig#isEnabled()} = false → CLI 子客户端为 {@code null}</li>
  * </ul>
+ *
+ * <h3>构造器选择</h3>
+ * <p>提供 8 个重载覆盖三类场景：</p>
+ * <ul>
+ *     <li>仅 HTTP / 仅 CLI：传入单个子配置，禁用另一子系统</li>
+ *     <li>HTTP + CLI：传入两个子配置，子系统都按各自 {@code enabled} 决定</li>
+ *     <li>组合配置：传入 {@link OpenCodeClientConfig}，内部拆分为两个子配置</li>
+ * </ul>
+ * <p>每种场景再分「自动 ObjectMapper/OkHttpClient」与「强制注入」两个变体。
+ * 强制注入的版本对 {@code ObjectMapper}/{@code OkHttpClient} 进行 {@code requireNonNull} 校验。</p>
+ *
+ * <h3>启动自检</h3>
+ * <p>主构造器在子系统初始化后按 {@code startupCheckEnabled} 与 {@code failFastOnUnavailable}
+ * 执行健康探测（HTTP：{@code GET /global/health}；CLI：{@code opencode --version}）。
+ * 探测失败但未开启 fail-fast 时仅 WARN，不中断构造。</p>
  */
+@Slf4j
 public class OpenCodeClient implements AutoCloseable {
 
     private final OpenCodeClientConfig config;
@@ -32,50 +49,85 @@ public class OpenCodeClient implements AutoCloseable {
     private final OpenCodeSseClient sseClient;
     private final OpenCodeCli cli;
 
-    /**
-     * 使用 HTTP 与 CLI 独立配置构造客户端。
-     */
+    // ============================================================
+    // 构造器
+    // ============================================================
+
+    /** 仅 HTTP 子系统（CLI 禁用）。自动创建默认 ObjectMapper 与 OkHttpClient。 */
+    public OpenCodeClient(OpenCodeHttpClientConfig httpConfig) {
+        this(httpConfig, new OpenCodeCliConfig(), new ObjectMapper(), new OkHttpClient());
+    }
+
+    /** 仅 HTTP 子系统（CLI 禁用），强制注入共享 ObjectMapper 与 OkHttpClient。 */
+    public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, ObjectMapper objectMapper, OkHttpClient httpClient) {
+        this(httpConfig, new OpenCodeCliConfig(), objectMapper, httpClient);
+    }
+
+    /** 仅 CLI 子系统（HTTP 禁用）。自动创建默认 ObjectMapper 与 OkHttpClient。 */
+    public OpenCodeClient(OpenCodeCliConfig cliConfig) {
+        this(new OpenCodeHttpClientConfig(), cliConfig, new ObjectMapper(), new OkHttpClient());
+    }
+
+    /** 仅 CLI 子系统（HTTP 禁用），强制注入共享 ObjectMapper 与 OkHttpClient。 */
+    public OpenCodeClient(OpenCodeCliConfig cliConfig, ObjectMapper objectMapper, OkHttpClient httpClient) {
+        this(new OpenCodeHttpClientConfig(), cliConfig, objectMapper, httpClient);
+    }
+
+    /** HTTP + CLI 子系统。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig) {
-        this(httpConfig, cliConfig, null, null);
+        this(httpConfig, cliConfig, new ObjectMapper(), new OkHttpClient());
     }
 
     /**
-     * 使用 HTTP 与 CLI 独立配置构造客户端，可注入共享 OkHttp 与 ObjectMapper。
+     * HTTP + CLI 子系统，强制注入共享 ObjectMapper 与 OkHttpClient。
+     * <p>
+     * <b>主构造器</b>：所有参数 {@code requireNonNull}；HTTP/CLI 子客户端按各自
+     * {@code enabled} 决定是否创建（禁用时为 {@code null}）；构造完成后按
+     * {@code startupCheckEnabled} 与 {@code failFastOnUnavailable} 执行启动自检。
+     * </p>
      */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig,
                           ObjectMapper objectMapper, OkHttpClient httpClient) {
         Objects.requireNonNull(httpConfig, "httpConfig");
         Objects.requireNonNull(cliConfig, "cliConfig");
+        Objects.requireNonNull(objectMapper, "objectMapper");
+        Objects.requireNonNull(httpClient, "httpClient");
+
+        boolean httpEnabled = httpConfig.isEnabled();
+        boolean cliEnabled = cliConfig.isEnabled();
+
+        // 内部聚合配置
         this.config = new OpenCodeClientConfig();
-        this.config.getHttp().setServerUrl(httpConfig.getServerUrl());
-        this.config.getHttp().setUsername(httpConfig.getUsername());
-        this.config.getHttp().setPassword(httpConfig.getPassword());
-        this.config.getHttp().setConnectTimeoutMillis(httpConfig.getConnectTimeoutMillis());
-        this.config.getHttp().setReadTimeoutMillis(httpConfig.getReadTimeoutMillis());
-        this.config.getHttp().setVerifySsl(httpConfig.isVerifySsl());
-        this.config.getHttp().setDefaultModel(httpConfig.getDefaultModel());
-        this.config.getHttp().setDefaultAgent(httpConfig.getDefaultAgent());
-        this.config.getCli().setExecutable(cliConfig.getExecutable());
-        this.config.getCli().setTimeout(cliConfig.getTimeout());
-        this.config.getCli().setProbeTimeoutSeconds(cliConfig.getProbeTimeoutSeconds());
-        this.config.getCli().setWorkingDirectory(cliConfig.getWorkingDirectory());
-        this.config.getCli().setMaxConcurrentExecutions(cliConfig.getMaxConcurrentExecutions());
-        this.httpClient = new OpenCodeHttpClient(httpConfig, objectMapper, httpClient);
-        this.sseClient = new OpenCodeSseClient(httpConfig, objectMapper,
-                httpClient != null ? httpClient : this.httpClient.getOkHttpClient());
-        this.cli = new OpenCodeCli(new OpenCodeCliExecutor(cliConfig));
+        copyHttpConfig(httpConfig);
+        copyCliConfig(cliConfig);
+
+        // HTTP 子系统初始化
+        if (httpEnabled) {
+            this.httpClient = new OpenCodeHttpClient(httpConfig, objectMapper, httpClient);
+            this.sseClient = new OpenCodeSseClient(httpConfig, objectMapper,
+                    httpClient != null ? httpClient : this.httpClient.getOkHttpClient());
+        } else {
+            this.httpClient = null;
+            this.sseClient = null;
+        }
+
+        // CLI 子系统初始化
+        if (cliEnabled) {
+            this.cli = new OpenCodeCli(new OpenCodeCliExecutor(cliConfig));
+        } else {
+            this.cli = null;
+        }
+
+        // 启动自检
+        runStartupChecks(httpConfig, cliConfig);
     }
 
-    /**
-     * 使用组合配置构造客户端。
-     */
+    /** 组合配置，自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeClientConfig config) {
-        this(config, null, null);
+        this(config, new ObjectMapper(), new OkHttpClient());
     }
 
-    /**
-     * 标准构造（自动创建 HTTP、SSE、CLI 客户端）。
-     */
+    /** 组合配置，强制注入共享 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this(Objects.requireNonNull(config, "config").getHttp(),
                 config.getCli(),
@@ -84,16 +136,96 @@ public class OpenCodeClient implements AutoCloseable {
     }
 
     /**
-     * 完整依赖注入（用于测试或自定义组件）。
+     * 全量依赖注入（用于测试或自定义组件）。
+     * <p>使用此构造方法<b>不会</b>执行任何启动自检。</p>
      */
     public OpenCodeClient(OpenCodeClientConfig config,
                           OpenCodeHttpClient httpClient,
                           OpenCodeSseClient sseClient,
                           OpenCodeCli cli) {
         this.config = Objects.requireNonNull(config, "config");
-        this.httpClient = Objects.requireNonNull(httpClient, "httpClient");
-        this.sseClient = Objects.requireNonNull(sseClient, "sseClient");
-        this.cli = Objects.requireNonNull(cli, "cli");
+        this.httpClient = httpClient;
+        this.sseClient = sseClient;
+        this.cli = cli;
+    }
+
+    // ============================================================
+    // 启动自检
+    // ============================================================
+
+    private void runStartupChecks(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig) {
+        if (httpConfig.isEnabled() && httpConfig.isStartupCheckEnabled()) {
+            try {
+                httpClient.health();
+                log.info("OpenCode HTTP health check passed: {}", httpConfig.getServerUrl());
+            } catch (Exception e) {
+                if (httpConfig.isFailFastOnUnavailable()) {
+                    throw new IllegalStateException(
+                            "OpenCode HTTP service is not available: " + e.getMessage()
+                                    + ". Set OpenCodeHttpClientConfig.enabled=false or startupCheckEnabled=false to disable.",
+                            e);
+                }
+                log.warn("OpenCode HTTP service is not available (continuing without strict check): {}", e.getMessage());
+            }
+        }
+
+        if (cliConfig.isEnabled() && cliConfig.isStartupCheckEnabled()) {
+            OpenCodeCliAvailabilityReport report = new io.github.easy4j.opencode.cli.availability.OpenCodeCliAvailabilityChecker().check(cliConfig);
+            if (!report.isAvailable()) {
+                if (cliConfig.isFailFastOnUnavailable()) {
+                    throw new IllegalStateException(
+                            "OpenCode CLI is not available: " + report.toDiagnosticMessage()
+                                    + ". Set OpenCodeCliConfig.enabled=false or startupCheckEnabled=false to disable.");
+                }
+                log.warn("OpenCode CLI startup check failed (fail-fast disabled): {}",
+                        report.toDiagnosticMessage());
+            } else {
+                log.info("OpenCode CLI ready: {}", report.toDiagnosticMessage());
+            }
+        }
+    }
+
+    // ============================================================
+    // 子系统启用状态查询
+    // ============================================================
+
+    /** HTTP 子系统是否启用。 */
+    public boolean isHttpEnabled() {
+        return httpClient != null;
+    }
+
+    /** CLI 子系统是否启用。 */
+    public boolean isCliEnabled() {
+        return cli != null;
+    }
+
+    // ============================================================
+    // 配置复制
+    // ============================================================
+
+    private void copyHttpConfig(OpenCodeHttpClientConfig src) {
+        this.config.getHttp().setEnabled(src.isEnabled());
+        this.config.getHttp().setStartupCheckEnabled(src.isStartupCheckEnabled());
+        this.config.getHttp().setFailFastOnUnavailable(src.isFailFastOnUnavailable());
+        this.config.getHttp().setServerUrl(src.getServerUrl());
+        this.config.getHttp().setUsername(src.getUsername());
+        this.config.getHttp().setPassword(src.getPassword());
+        this.config.getHttp().setConnectTimeoutMillis(src.getConnectTimeoutMillis());
+        this.config.getHttp().setReadTimeoutMillis(src.getReadTimeoutMillis());
+        this.config.getHttp().setVerifySsl(src.isVerifySsl());
+        this.config.getHttp().setDefaultModel(src.getDefaultModel());
+        this.config.getHttp().setDefaultAgent(src.getDefaultAgent());
+    }
+
+    private void copyCliConfig(OpenCodeCliConfig src) {
+        this.config.getCli().setEnabled(src.isEnabled());
+        this.config.getCli().setStartupCheckEnabled(src.isStartupCheckEnabled());
+        this.config.getCli().setFailFastOnUnavailable(src.isFailFastOnUnavailable());
+        this.config.getCli().setExecutable(src.getExecutable());
+        this.config.getCli().setTimeout(src.getTimeout());
+        this.config.getCli().setProbeTimeoutSeconds(src.getProbeTimeoutSeconds());
+        this.config.getCli().setWorkingDirectory(src.getWorkingDirectory());
+        this.config.getCli().setMaxConcurrentExecutions(src.getMaxConcurrentExecutions());
     }
 
     // ============================================================
@@ -112,12 +244,10 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.listSessions();
     }
 
-    /** 分页/过滤列出 sessions（服务端 search/limit/start 过滤）。 */
     public List<Session> listSessions(String search, Integer limit, Integer start) {
         return httpClient.listSessions(search, limit, start);
     }
 
-    /** 按 title 精确查找 session，未命中返回 {@link java.util.Optional#empty()}。 */
     public java.util.Optional<Session> findSessionByTitle(String title) {
         return httpClient.findSessionByTitle(title);
     }
@@ -130,130 +260,58 @@ public class OpenCodeClient implements AutoCloseable {
     // Prompt
     // ============================================================
 
-    /**
-     * 发送 prompt 并同步等待 AI 响应。
-     *
-     * @param sessionId 会话 ID
-     * @param request   prompt 请求
-     * @return AI 响应
-     */
     public PromptResult chatCompletion(String sessionId, PromptRequest request) {
         return httpClient.prompt(sessionId, request);
     }
 
-    /**
-     * 快捷方式：发送纯文本 prompt。
-     */
     public PromptResult chatCompletion(String sessionId, String text) {
         return httpClient.prompt(sessionId, PromptRequest.ofText(text));
     }
 
-    /**
-     * 快捷方式：发送纯文本 prompt 并指定模型。
-     */
     public PromptResult chatCompletion(String sessionId, String text, String providerID, String modelID) {
         return httpClient.prompt(sessionId, PromptRequest.ofText(text, providerID, modelID));
     }
 
     // ----------------------------------------------------------------
-    // sessionKey 模式（对齐 Hermes/OpenClaw chatCompletionWithSession）
+    // sessionKey 模式
     // ----------------------------------------------------------------
 
-    /**
-     * 按 sessionKey 发送消息并同步等待 AI 响应。
-     * <p>底层基于会话模型（ensureSession + prompt），对外封装为与 Hermes/OpenClaw 对称的
-     * {@code chatCompletionWithSession} 接口。sessionKey 同时作为 session 的 title，
-     * {@code ensureSession} 保证 session 存在（不存在则创建）。
-     * 建议用 {@link io.github.easy4j.opencode.api.OpenCodeSessionKeys} 生成 sessionKey。</p>
-     *
-     * @param request    prompt 请求
-     * @param sessionKey 会话复用 key
-     * @return AI 响应
-     */
     public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey) {
         return httpClient.chatCompletionWithSession(request, sessionKey);
     }
 
-    /**
-     * 按 sessionKey 发送纯文本消息并同步等待 AI 响应。
-     */
     public PromptResult chatCompletionWithSession(String text, String sessionKey) {
         return httpClient.chatCompletionWithSession(PromptRequest.ofText(text), sessionKey);
     }
 
-    /**
-     * 按 sessionKey 发送纯文本消息并指定模型。
-     */
     public PromptResult chatCompletionWithSession(String text, String providerID, String modelID, String sessionKey) {
         return httpClient.chatCompletionWithSession(PromptRequest.ofText(text, providerID, modelID), sessionKey);
     }
 
-    /**
-     * 按 sessionKey 异步发送消息，不等待响应。
-     */
     public boolean chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
         return httpClient.chatCompletionWithSessionAsync(request, sessionKey);
     }
 
     // ----------------------------------------------------------------
-    // OpenAI 标准 ChatRequest/ChatResponse（对齐 OpenClaw/Hermes）
+    // OpenAI 标准 ChatRequest/ChatResponse
     // ----------------------------------------------------------------
 
-    /**
-     * 按 sessionId 发送 OpenAI 标准请求并同步等待响应。
-     * <p>内部自动将 {@link ChatRequest} 转换为 {@link PromptRequest}，
-     * 将 {@link PromptResult} 转换为 {@link ChatResponse}。</p>
-     *
-     * @param sessionId 会话 ID
-     * @param request   OpenAI 标准请求
-     * @return OpenAI 标准响应
-     */
     public ChatResponse chatCompletion(String sessionId, ChatRequest request) {
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         PromptResult result = httpClient.prompt(sessionId, promptRequest);
         return ChatMessageMapper.toChatResponse(result);
     }
 
-    /**
-     * 按 sessionKey 发送 OpenAI 标准请求并同步等待响应。
-     * <p>与 OpenClaw/Hermes 的 {@code chatCompletionWithSession(request, sessionKey)} 完全对称。</p>
-     *
-     * @param request    OpenAI 标准请求
-     * @param sessionKey 会话复用 key
-     * @return OpenAI 标准响应
-     */
     public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey) {
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey);
         return ChatMessageMapper.toChatResponse(result);
     }
 
-    /**
-     * 按 sessionKey 流式发送消息，返回 {@link ChatStreamingResponse}。
-     * <p>
-     * 内部流程：ensureSession → promptAsync（不阻塞）→ 订阅全局 SSE 事件流 →
-     * 按 sessionId 过滤事件，累积 text delta → session idle 时完成 future。
-     * </p>
-     * <p>与 Hermes 的 {@code chatCompletionStream} 对称，调用方可通过
-     * {@link ChatStreamingResponse#onDelta(Consumer)} 注册增量回调，
-     * 或通过 {@link ChatStreamingResponse#get()} 阻塞等待完整文本。</p>
-     *
-     * @param request    OpenAI 标准请求
-     * @param sessionKey 会话复用 key
-     * @return 流式响应（CompletableFuture，完成时携带完整文本）
-     */
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
         return chatCompletionStream(request, sessionKey, null);
     }
 
-    /**
-     * 在指定 OpenCode 工作目录中按 sessionKey 流式发送消息。
-     *
-     * @param request 请求
-     * @param sessionKey 稳定会话键
-     * @param context 包含受控工作目录的请求上下文
-     * @return 流式响应
-     */
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context) {
         String sessionId = httpClient.ensureSession(sessionKey, context);
@@ -261,10 +319,8 @@ public class OpenCodeClient implements AutoCloseable {
 
         ChatStreamingResponse stream = new ChatStreamingResponse();
 
-        // 订阅全局 SSE，按 sessionId 过滤事件
         java.util.concurrent.BlockingQueue<Event> queue = sseClient.subscribeQueue(context);
 
-        // 异步消费事件
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
                 long deadline = System.currentTimeMillis() + (config.getCli().getTimeout() * 1000L);
@@ -274,7 +330,6 @@ public class OpenCodeClient implements AutoCloseable {
                         continue;
                     }
 
-                    // 按 sessionId 过滤
                     String eventSessionId = event.getProperties() != null
                             ? Objects.toString(event.getProperties().get("sessionID"), null) : null;
                     if (eventSessionId == null || !eventSessionId.equals(sessionId)) {
@@ -286,7 +341,6 @@ public class OpenCodeClient implements AutoCloseable {
                         continue;
                     }
 
-                    // text delta 事件
                     if (type.contains("text.delta") || type.contains("message.part.updated")) {
                         String delta = extractDeltaText(event);
                         if (delta != null && !delta.isEmpty()) {
@@ -294,7 +348,6 @@ public class OpenCodeClient implements AutoCloseable {
                         }
                     }
 
-                    // session idle = 完成
                     if (type.contains("session.status") || type.contains("session.idle")) {
                         String status = event.getProperties() != null
                                 ? Objects.toString(event.getProperties().get("status"), null) : null;
@@ -304,7 +357,6 @@ public class OpenCodeClient implements AutoCloseable {
                         }
                     }
 
-                    // session error
                     if (type.contains("session.error")) {
                         String error = event.getProperties() != null
                                 ? Objects.toString(event.getProperties().get("error"), "unknown error") : "unknown error";
@@ -323,20 +375,15 @@ public class OpenCodeClient implements AutoCloseable {
             }
         });
 
-        // 触发异步 prompt（不阻塞，SSE 事件驱动结果）
         httpClient.promptAsync(sessionId, promptRequest, context);
 
         return stream;
     }
 
-    /**
-     * 从事件属性中提取增量文本。
-     */
     private static String extractDeltaText(Event event) {
         if (event.getProperties() == null) {
             return null;
         }
-        // 尝试 part.text
         Object part = event.getProperties().get("part");
         if (part instanceof Map) {
             Object text = ((Map<?, ?>) part).get("text");
@@ -344,7 +391,6 @@ public class OpenCodeClient implements AutoCloseable {
                 return text.toString();
             }
         }
-        // 尝试 delta
         Object delta = event.getProperties().get("delta");
         if (delta != null) {
             return delta.toString();
@@ -352,27 +398,14 @@ public class OpenCodeClient implements AutoCloseable {
         return null;
     }
 
-    /**
-     * 确保 sessionKey 对应的 session 存在，返回其 sessionId。
-     */
     public String ensureSession(String sessionKey) {
         return httpClient.ensureSession(sessionKey);
     }
 
-    /**
-     * 异步发送消息，不等待响应。
-     *
-     * @param sessionId 会话 ID
-     * @param request   prompt 请求
-     * @return 是否成功提交
-     */
     public boolean chatCompletionAsync(String sessionId, PromptRequest request) {
         return httpClient.promptAsync(sessionId, request);
     }
 
-    /**
-     * 快捷方式：异步发送纯文本消息。
-     */
     public boolean chatCompletionAsync(String sessionId, String text) {
         return httpClient.promptAsync(sessionId, PromptRequest.ofText(text));
     }
@@ -381,9 +414,6 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.getMessages(sessionId);
     }
 
-    /**
-     * 中止正在运行的会话。
-     */
     public boolean abort(String sessionId) {
         return httpClient.abortSession(sessionId);
     }
@@ -408,43 +438,24 @@ public class OpenCodeClient implements AutoCloseable {
     // SSE 事件流
     // ============================================================
 
-    /**
-     * 获取 SSE 客户端实例。
-     */
     public OpenCodeSseClient sse() {
         return sseClient;
     }
 
-    /**
-     * {@code sse()} 的别名，等价。
-     */
     public OpenCodeSseClient eventStream() {
         return sseClient;
     }
 
-    /**
-     * 订阅指定 session 的事件，使用类型化 {@link io.github.easy4j.opencode.api.event.EventHandler}。
-     *
-     * @return EventSource，可调用 cancel() 停止订阅
-     */
     public okhttp3.sse.EventSource onSessionEvent(String sessionId,
             io.github.easy4j.opencode.api.event.EventHandler handler) {
         return sseClient.subscribeHandler(sessionId, handler);
     }
 
-    /**
-     * 订阅全局事件流（不按 session 过滤），使用类型化 handler。
-     */
     public okhttp3.sse.EventSource onEvent(
             io.github.easy4j.opencode.api.event.EventHandler handler) {
         return sseClient.subscribeHandler(null, handler);
     }
 
-    /**
-     * 订阅特定事件类型集合。
-     *
-     * @param types 事件类型白名单
-     */
     public okhttp3.sse.EventSource onEventTypes(java.util.Set<String> types,
             java.util.function.Consumer<Event> consumer) {
         return sseClient.subscribeEventTypes(types, consumer);
@@ -454,9 +465,6 @@ public class OpenCodeClient implements AutoCloseable {
     // CLI
     // ============================================================
 
-    /**
-     * 本地 CLI 命令封装。
-     */
     public OpenCodeCli cli() {
         return cli;
     }
@@ -468,10 +476,6 @@ public class OpenCodeClient implements AutoCloseable {
     public OpenCodeClientConfig getConfig() {
         return config;
     }
-
-    // ============================================================
-    // Config（HTTP 层，独立于上面的 getConfig() OpenCodeClientConfig）
-    // ============================================================
 
     public OpenCodeConfig getOpenCodeConfig() {
         return httpClient.getConfig();
@@ -562,7 +566,7 @@ public class OpenCodeClient implements AutoCloseable {
     }
 
     // ============================================================
-    // Misc (Command / Skill / Formatter / Lsp / MCP / Path / VCS)
+    // Misc
     // ============================================================
 
     public List<Command> listCommands() {
@@ -711,7 +715,7 @@ public class OpenCodeClient implements AutoCloseable {
     }
 
     // ============================================================
-    // CLI facade（cliServe、cliWeb 等是新增的便捷别名，与 cli().serve() 等价）
+    // CLI facade
     // ============================================================
 
     public io.github.easy4j.opencode.cli.OpenCodeCliResult cliServe() {
@@ -884,7 +888,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     @Override
     public void close() {
-        httpClient.close();
-        sseClient.close();
+        if (httpClient != null) httpClient.close();
+        if (sseClient != null) sseClient.close();
     }
 }
