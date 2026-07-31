@@ -12,6 +12,23 @@ import lombok.Data;
 public class OpenCodeHttpClientConfig {
 
     /**
+     * 是否启用 HTTP 子系统。
+     * <p>为 false 时跳过 HTTP 客户端初始化和检查。</p>
+     */
+    private boolean enabled = true;
+
+    /**
+     * 启动时是否探测 HTTP 服务可用性（{@code GET /global/health}）。
+     */
+    private boolean startupCheckEnabled = true;
+
+    /**
+     * HTTP 服务不可用时是否快速失败（中断构造）。
+     * <p>默认 false 仅打 WARN；生产环境建议设为 true。</p>
+     */
+    private boolean failFastOnUnavailable = false;
+
+    /**
      * OpenCode Server 根地址，例如 {@code http://localhost:4096}。
      */
     private String serverUrl = "http://localhost:4096";
