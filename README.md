@@ -2,6 +2,8 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
+[![Java](https://img.shields.io/badge/Java-8-orange)](https://github.com/easy-4-java/opencode-java-sdk) [![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
+
 Pure Java SDK (no Spring) for the OpenCode Server: HTTP REST API, SSE event stream and local CLI
 [简体中文](./README.zh-CN.md)
 
