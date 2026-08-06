@@ -64,7 +64,7 @@
         <slf4j.version>2.0.18</slf4j.version>
         <lombok.version>1.18.46</lombok.version>
         <commons-exec.version>1.4.0</commons-exec.version>
-        <junit.version>5.11.4</junit.version>
+        <junit.version>4.13.2</junit.version>
         <maven.version>3.0</maven.version>
         <!-- Maven Plugin versions -->
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
@@ -81,7 +81,9 @@
         <maven-source-plugin.version>3.4.0</maven-source-plugin.version>
         <maven-central-publishing-plugin.version>0.11.0</maven-central-publishing-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
-    </properties>
+    
+		<junit-jupiter.version>6.1.0</junit-jupiter.version>
+		<commons-lang.version>2.6</commons-lang.version></properties>
 
     <!-- 依赖版本统一管理（dependencyManagement） -->
     <dependencyManagement>
@@ -124,29 +126,29 @@
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>
-                <version>${junit.version}</version>
+                <version>${junit-jupiter.version}</version>
             </dependency>
             <!-- For OkHttp -->
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp</artifactId>
-            <version>4.9.3</version></dependency>
+            <version>${okhttp.version}</version></dependency>
             <!-- For OkHttp -->
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp-sse</artifactId>
-            <version>4.9.3</version></dependency>
+            <version>${okhttp.version}</version></dependency>
             <!-- For Jackson -->
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
-            <version>2.17.2</version></dependency>
+            <version>${jackson.version}</version></dependency>
             <!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/mockwebserver -->
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>mockwebserver</artifactId>
                 <scope>test</scope>
-            <version>4.9.3</version></dependency>
+            <version>${okhttp.version}</version></dependency>
         </dependencies>
     </dependencyManagement>
 
