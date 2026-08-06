@@ -16,7 +16,7 @@ import java.util.List;
  * {@code PromptResult.getTextContent()} → {@code choices[0].message.content}。
  * </p>
  *
- * @author wandl
+ * @author [@Loong Wan](https://github.com/loong10k)
  * @since 2.7.x
  */
 @Getter

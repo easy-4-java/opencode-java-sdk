@@ -10,7 +10,7 @@ import java.util.function.Consumer;
  * 通过 {@link #onDelta(Consumer)} 注册增量回调。
  * </p>
  *
- * @author wandl
+ * @author [@Loong Wan](https://github.com/loong10k)
  * @since 2.7.x
  */
 public class ChatStreamingResponse extends CompletableFuture<String> {
