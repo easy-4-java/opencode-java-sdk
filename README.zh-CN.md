@@ -2,6 +2,8 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
+[![Java](https://img.shields.io/badge/Java-17-orange)](https://github.com/easy-4-java/opencode-java-sdk) [![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
+
 纯 Java 库（无 Spring）：通过 HTTP REST API、SSE 事件流与本地 CLI 与 OpenCode Server 交互
 
 > **当前分支**：`feature/2.0.x`
