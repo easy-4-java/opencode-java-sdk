@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  *     <li><b>按渠道隔离</b>：{@code opencode:{agentId}:{peerId}:{channel}}</li>
  * </ul>
  *
- * @author wandl
+ * @author [@Loong Wan](https://github.com/loong10k)
  * @since 2.7.x
  */
 public final class OpenCodeSessionKeys {

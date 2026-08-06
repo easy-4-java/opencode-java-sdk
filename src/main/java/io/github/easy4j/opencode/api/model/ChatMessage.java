@@ -8,7 +8,7 @@ import lombok.Setter;
 /**
  * OpenAI Chat Completions API 消息对象（对齐 OpenClaw/Hermes）。
  *
- * @author wandl
+ * @author [@Loong Wan](https://github.com/loong10k)
  * @since 2.7.x
  */
 @Getter
