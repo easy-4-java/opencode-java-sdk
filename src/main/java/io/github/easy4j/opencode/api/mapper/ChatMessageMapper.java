@@ -13,7 +13,7 @@ import java.util.UUID;
 /**
  * {@link ChatRequest}/{@link ChatResponse}（OpenAI 标准）与 {@link PromptRequest}/{@link PromptResult}（OpenCode 会话模型）互转。
  *
- * @author wandl
+ * @author [@Loong Wan](https://github.com/loong10k)
  * @since 2.7.x
  */
 public final class ChatMessageMapper {
