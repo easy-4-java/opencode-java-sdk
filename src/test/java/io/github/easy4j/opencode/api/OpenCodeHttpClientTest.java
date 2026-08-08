@@ -37,7 +37,7 @@ class OpenCodeHttpClientTest {
         server = new MockWebServer();
         server.start();
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
-        config.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        config.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         client = new OpenCodeHttpClient(config, null, null);
     }
 
@@ -96,7 +96,7 @@ class OpenCodeHttpClientTest {
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody("data: {\"type\":\"server.connected\",\"properties\":{}}\n\n"));
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
-        config.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        config.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         OpenCodeSseClient sseClient = new OpenCodeSseClient(
                 config, client.getObjectMapper(), client.getOkHttpClient());
         try {

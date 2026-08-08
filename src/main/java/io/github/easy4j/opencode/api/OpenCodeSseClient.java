@@ -69,7 +69,7 @@ public class OpenCodeSseClient implements AutoCloseable {
         EventSourceListener listener = new EventSourceListener() {
             @Override
             public void onOpen(EventSource es, Response response) {
-                log.info("SSE connected to {}/event", config.getServerUrl());
+                log.info("SSE connected to {}/event", config.getBaseUrl());
             }
 
             @Override
@@ -207,7 +207,7 @@ public class OpenCodeSseClient implements AutoCloseable {
     }
 
     private Request buildRequest(OpenCodeRequestContext context) {
-        String url = config.getServerUrl() + "/event";
+        String url = config.getBaseUrl() + "/event";
         Request.Builder builder = new Request.Builder().url(url)
                 .header("Accept", "text/event-stream")
                 .header("Cache-Control", "no-cache");
