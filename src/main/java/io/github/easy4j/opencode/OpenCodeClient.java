@@ -7,6 +7,7 @@ import io.github.easy4j.opencode.cli.OpenCodeCli;
 import io.github.easy4j.opencode.cli.OpenCodeCliExecutor;
 import io.github.easy4j.opencode.cli.availability.OpenCodeCliAvailabilityReport;
 import io.github.easy4j.opencode.api.OpenCodeHttpClient;
+import io.github.easy4j.opencode.api.OpenCodeChatClient;
 import io.github.easy4j.opencode.api.OpenCodeRequestContext;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     private final OpenCodeClientConfig config;
     private final OpenCodeHttpClient httpClient;
+    private final OpenCodeChatClient chatClient;
     private final OpenCodeSseClient sseClient;
     private final OpenCodeCli cli;
     private final ExecutorService streamExecutor;
@@ -110,14 +112,15 @@ public class OpenCodeClient implements AutoCloseable {
 
         // HTTP 子系统初始化
         if (httpEnabled) {
-            this.httpClient = new OpenCodeHttpClient(httpConfig, objectMapper, httpClient);
-            this.sseClient = new OpenCodeSseClient(httpConfig, objectMapper,
-                    this.httpClient.getOkHttpClient());
+            this.chatClient = new OpenCodeChatClient(httpConfig, objectMapper, httpClient);
+            this.httpClient = this.chatClient;
+            this.sseClient = this.chatClient.events();
         } else {
             this.httpClient = null;
+            this.chatClient = null;
             this.sseClient = null;
         }
-        this.streamExecutor = createStreamExecutor(httpConfig);
+        this.streamExecutor = this.chatClient == null ? createStreamExecutor(httpConfig) : null;
 
         // CLI 子系统初始化
         if (cliEnabled) {
@@ -153,9 +156,10 @@ public class OpenCodeClient implements AutoCloseable {
                           OpenCodeCli cli) {
         this.config = Objects.requireNonNull(config, "config");
         this.httpClient = httpClient;
+        this.chatClient = httpClient instanceof OpenCodeChatClient ? (OpenCodeChatClient) httpClient : null;
         this.sseClient = sseClient;
         this.cli = cli;
-        this.streamExecutor = createStreamExecutor(config.getHttp());
+        this.streamExecutor = this.chatClient == null ? createStreamExecutor(config.getHttp()) : null;
     }
 
     private static ExecutorService createStreamExecutor(OpenCodeHttpClientConfig config) {
@@ -371,6 +375,9 @@ public class OpenCodeClient implements AutoCloseable {
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context,
                                                        Consumer<String> deltaConsumer) {
+        if (chatClient != null) {
+            return chatClient.chatCompletionStream(request, sessionKey, context, deltaConsumer);
+        }
         String sessionId = httpClient.ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 
@@ -513,6 +520,13 @@ public class OpenCodeClient implements AutoCloseable {
     // SSE 事件流
     // ============================================================
 
+    /** 获取统一的 OpenCode 聊天场景客户端。 */
+    public OpenCodeChatClient chat() {
+        return chatClient;
+    }
+
+    /** @deprecated 业务聊天请使用 {@link #chat()}，这里只保留原始事件订阅兼容入口。 */
+    @Deprecated
     public OpenCodeSseClient sse() {
         return sseClient;
     }
@@ -963,7 +977,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     @Override
     public void close() {
-        streamExecutor.shutdownNow();
+        if (streamExecutor != null) streamExecutor.shutdownNow();
         if (httpClient != null) httpClient.close();
         if (sseClient != null) sseClient.close();
     }
