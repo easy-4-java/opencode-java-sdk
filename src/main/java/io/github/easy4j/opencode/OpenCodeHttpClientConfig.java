@@ -39,7 +39,19 @@ public class OpenCodeHttpClientConfig {
     /**
      * OpenCode Server 根地址，例如 {@code http://localhost:4096}。
      */
-    private String serverUrl = "http://localhost:4096";
+    private String baseUrl = "http://localhost:4096";
+
+    /** @deprecated 使用 {@link #getBaseUrl()}。 */
+    @Deprecated
+    public String getServerUrl() {
+        return baseUrl;
+    }
+
+    /** @deprecated 使用 {@link #setBaseUrl(String)}。 */
+    @Deprecated
+    public void setServerUrl(String value) {
+        this.baseUrl = value;
+    }
 
     /**
      * HTTP Basic Auth 用户名（对应 {@code OPENCODE_SERVER_USERNAME}，默认 {@code opencode}）。
