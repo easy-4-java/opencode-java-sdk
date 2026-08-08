@@ -40,7 +40,7 @@ class OpenCodeClientTest {
     @Test
     void shouldCreateClientWithHttpConfigOnly() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         OpenCodeClientConfig config = new OpenCodeClientConfig();
         OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
@@ -66,7 +66,7 @@ class OpenCodeClientTest {
     @Test
     void shouldCreateClientWithBothSubsystems() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         OpenCodeClientConfig config = new OpenCodeClientConfig();
         OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
         OpenCodeCliExecutor executor = new OpenCodeCliExecutor(config.getCli());
@@ -122,7 +122,7 @@ class OpenCodeClientTest {
     @Test
     void shouldDelegateHealthToHttpClient() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody("{\"healthy\":true,\"version\":\"1.0.0\"}"));
@@ -140,7 +140,7 @@ class OpenCodeClientTest {
     @Test
     void shouldDelegateListSessions() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody("[{\"id\":\"sess-1\",\"title\":\"test\"}]"));
@@ -158,7 +158,7 @@ class OpenCodeClientTest {
     @Test
     void shouldDelegateListAgents() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody("[{\"name\":\"coder\"}]"));
@@ -176,7 +176,7 @@ class OpenCodeClientTest {
     @Test
     void shouldDelegateGetConfig() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody("{\"theme\":\"dark\"}"));
@@ -194,7 +194,7 @@ class OpenCodeClientTest {
     @Test
     void shouldDelegateAbort() {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
-        httpConfig.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody("{}"));

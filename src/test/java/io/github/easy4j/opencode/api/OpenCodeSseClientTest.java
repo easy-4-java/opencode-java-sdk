@@ -33,7 +33,7 @@ class OpenCodeSseClientTest {
         server = new MockWebServer();
         server.start();
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
-        config.setServerUrl(server.url("/").toString().replaceAll("/$", ""));
+        config.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         sseClient = new OpenCodeSseClient(config, null, null);
     }
 

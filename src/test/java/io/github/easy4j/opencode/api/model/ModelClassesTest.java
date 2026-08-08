@@ -1,5 +1,7 @@
 package io.github.easy4j.opencode.api.model;
 
+import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
@@ -162,12 +164,12 @@ class ModelClassesTest {
     }
 
     // ============================================================
-    // ChatStreamingResponse
+    // StreamingChatResponse
     // ============================================================
 
     @Test
     void shouldAccumulateDeltasAndFinish() {
-        ChatStreamingResponse stream = new ChatStreamingResponse();
+        StreamingChatResponse stream = new StreamingChatResponse();
         StringBuilder received = new StringBuilder();
         stream.onDelta(received::append);
 
@@ -185,7 +187,7 @@ class ModelClassesTest {
 
     @Test
     void shouldFailStreamOnException() {
-        ChatStreamingResponse stream = new ChatStreamingResponse();
+        StreamingChatResponse stream = new StreamingChatResponse();
         RuntimeException error = new RuntimeException("boom");
         stream.fail(error);
 
@@ -196,7 +198,7 @@ class ModelClassesTest {
 
     @Test
     void shouldHandleNullAndEmptyDelta() {
-        ChatStreamingResponse stream = new ChatStreamingResponse();
+        StreamingChatResponse stream = new StreamingChatResponse();
         stream.acceptDelta(null);
         stream.acceptDelta("");
         assertEquals("", stream.getAccumulatedContent());
@@ -204,7 +206,7 @@ class ModelClassesTest {
 
     @Test
     void shouldWorkWithoutDeltaConsumer() {
-        ChatStreamingResponse stream = new ChatStreamingResponse();
+        StreamingChatResponse stream = new StreamingChatResponse();
         stream.acceptDelta("data");
         assertEquals("data", stream.getAccumulatedContent());
     }
