@@ -126,7 +126,7 @@ public class OpenCodeSseClient implements AutoCloseable {
 
     public QueueSubscription subscribeQueueSubscription(OpenCodeRequestContext context) {
         BlockingQueue<Event> queue = new ArrayBlockingQueue<>(
-                Math.max(1, config.getSseEventQueueCapacity()));
+                Math.max(1, config.getStreamEventQueueCapacity()));
         EventSource source = subscribe(event -> offerLatest(queue, event), context);
         return new QueueSubscription(queue, source);
     }

@@ -16,6 +16,9 @@ import lombok.Data;
 @Data
 public class OpenCodeHttpClientConfig {
 
+    /** 对话响应模式，默认保持兼容的完整响应模式。 */
+    private HttpResponseMode mode = HttpResponseMode.BLOCKING;
+
     /**
      * 是否启用 HTTP 子系统。
      * <p>为 false 时跳过 HTTP 客户端初始化和检查。</p>
@@ -102,13 +105,25 @@ public class OpenCodeHttpClientConfig {
     /** 流式事件处理线程空闲保活时间（毫秒）。 */
     private long streamKeepAliveMillis = 60_000L;
 
-    /** 单个 SSE 订阅的事件缓存上限。 */
-    private int sseEventQueueCapacity = 1_024;
+    /** 单个流式订阅的事件缓存上限。 */
+    private int streamEventQueueCapacity = 1_024;
 
     /**
      * 遇到失效连接等传输故障时是否允许 OkHttp 自动恢复。
      */
     private boolean retryOnConnectionFailure = true;
+
+    /** @deprecated 使用 {@link #getStreamEventQueueCapacity()}。 */
+    @Deprecated
+    public int getSseEventQueueCapacity() {
+        return streamEventQueueCapacity;
+    }
+
+    /** @deprecated 使用 {@link #setStreamEventQueueCapacity(int)}。 */
+    @Deprecated
+    public void setSseEventQueueCapacity(int value) {
+        this.streamEventQueueCapacity = value;
+    }
 
     /**
      * 是否校验 HTTPS 证书；为 false 时关闭校验（仅建议开发环境）。

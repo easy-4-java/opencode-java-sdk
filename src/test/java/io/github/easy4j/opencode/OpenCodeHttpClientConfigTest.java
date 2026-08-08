@@ -12,6 +12,7 @@ class OpenCodeHttpClientConfigTest {
     @Test
     void shouldHaveCorrectDefaults() {
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
+        assertEquals(HttpResponseMode.BLOCKING, config.getMode());
         assertTrue(config.isEnabled());
         assertFalse(config.isStartupCheckEnabled());
         assertFalse(config.isFailFastOnUnavailable());
@@ -30,7 +31,7 @@ class OpenCodeHttpClientConfigTest {
         assertEquals(32, config.getStreamMaxPoolSize());
         assertEquals(128, config.getStreamQueueCapacity());
         assertEquals(60_000L, config.getStreamKeepAliveMillis());
-        assertEquals(1_024, config.getSseEventQueueCapacity());
+        assertEquals(1_024, config.getStreamEventQueueCapacity());
         assertTrue(config.isRetryOnConnectionFailure());
         assertTrue(config.isVerifySsl());
         assertNull(config.getDefaultModel());
@@ -49,5 +50,12 @@ class OpenCodeHttpClientConfigTest {
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
         assertNull(config.getPassword());
         assertEquals("", config.resolvePassword());
+    }
+
+    @Test
+    void shouldKeepLegacySseEventQueueAlias() {
+        OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
+        config.setSseEventQueueCapacity(17);
+        assertEquals(17, config.getStreamEventQueueCapacity());
     }
 }
