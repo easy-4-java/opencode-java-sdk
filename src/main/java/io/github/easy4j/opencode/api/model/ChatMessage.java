@@ -6,10 +6,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * OpenAI Chat Completions API 消息对象（对齐 OpenClaw/Hermes）。
+ * OpenAI Chat Completions API message object (aligned with OpenClaw/Hermes).
  *
  * @author [@Loong Wan](https://github.com/loong10k)
- * @since 2.7.x
+ * @since 3.0.0
+ * @see ChatRequest
+ * @see ChatResponse
  */
 @Getter
 @Setter

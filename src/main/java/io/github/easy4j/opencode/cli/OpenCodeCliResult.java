@@ -3,7 +3,11 @@ package io.github.easy4j.opencode.cli;
 import lombok.Data;
 
 /**
- * CLI 执行结果。
+ * Represents the result of a local {@code opencode} CLI command execution.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeCliExecutor
  */
 @Data
 public class OpenCodeCliResult {

@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * 文件 diff 项，对应 {@code GET /session/:id/diff} 响应元素。
+ * Represents a file diff entry returned by {@code GET /session/:id/diff}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getSessionDiff(String, String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

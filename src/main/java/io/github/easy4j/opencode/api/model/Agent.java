@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * OpenCode Agent 信息。
+ * Represents an OpenCode agent, returned by {@code GET /agent}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listAgents()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

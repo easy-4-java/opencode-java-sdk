@@ -6,7 +6,11 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * OpenCode 已注册命令，对应 {@code GET /command} 响应元素。
+ * Represents a registered slash command in OpenCode, corresponding to a {@code GET /command} response element.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listCommands()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

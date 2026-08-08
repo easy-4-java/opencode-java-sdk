@@ -12,12 +12,23 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 从 OpenCode AI 响应中解析回调 JSON。
- * <p>
- * OpenCode 没有原生的 webhook/callback 机制。
- * 本解析器尝试从 AI 的文本响应中提取 JSON 块，
- * 其格式由 cloud-agents 的 prompt 模板约定（如 SKILL.md 中定义的 callback_url 输出格式）。
- * </p>
+ * Parses callback JSON from OpenCode AI text responses.
+ *
+ * <p>OpenCode does not have a native webhook/callback mechanism. This parser attempts
+ * to extract JSON blocks from the AI's text response, following the format conventions
+ * defined by cloud-agents prompt templates (e.g., the callback_url output format
+ * specified in SKILL.md).</p>
+ *
+ * <p>The parser tries three strategies in order:</p>
+ * <ol>
+ *     <li>Extract JSON from {@code ```json ... ```} fenced code blocks</li>
+ *     <li>Parse the entire text as JSON directly</li>
+ *     <li>Extract bare JSON objects containing {@code task_id}, {@code taskId}, or {@code title}</li>
+ * </ol>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.model.PromptResult
  */
 public class OpenCodeCallbackParser {
 

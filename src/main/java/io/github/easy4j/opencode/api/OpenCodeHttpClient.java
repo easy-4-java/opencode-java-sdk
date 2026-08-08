@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
-import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
 import io.github.easy4j.opencode.HttpCallCancellation;
+import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
 import io.github.easy4j.opencode.api.model.*;
 import io.github.easy4j.opencode.exception.OpenCodeHttpException;
 import lombok.extern.slf4j.Slf4j;
@@ -22,9 +22,16 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * OpenCode Server HTTP 客户端，封装 REST API。
- * <p>基于 OkHttp，支持外部传入 {@link OkHttpClient}（复用别的插件实例）。</p>
+ * HTTP client for the OpenCode Server REST API.
  *
+ * <p>Built on OkHttp; supports externally provided {@link OkHttpClient} instances for
+ * connection pooling across plugins. All methods throw {@link io.github.easy4j.opencode.exception.OpenCodeHttpException}
+ * on HTTP errors.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClientConfig
+ * @see io.github.easy4j.opencode.exception.OpenCodeHttpException
  * @see <a href="https://opencode.ai/docs/server/">opencode server docs</a>
  */
 @Slf4j
@@ -36,14 +43,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
     private final OpenCodeHttpClientConfig config;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final boolean ownsHttpClient;
 
     public OpenCodeHttpClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this.config = Objects.requireNonNull(config, "config");
         this.objectMapper = Objects.isNull(objectMapper) ? new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false): objectMapper;
-        this.ownsHttpClient = Objects.isNull(httpClient);
-        this.httpClient = this.ownsHttpClient ? buildOkHttpClient(config) : httpClient;
+        this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
     }
 
     private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
@@ -932,16 +937,6 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     @Override
     public void close() {
-        if (ownsHttpClient) {
-            httpClient.dispatcher().executorService().shutdownNow();
-            httpClient.connectionPool().evictAll();
-            if (Objects.nonNull(httpClient.cache())) {
-                try {
-                    httpClient.cache().close();
-                } catch (IOException error) {
-                    log.debug("Failed to close OpenCode HTTP cache", error);
-                }
-            }
-        }
+        // 外部传入的 OkHttpClient 不关闭；自建的也不主动关闭（OkHttpClient 内部管理连接池）
     }
 }

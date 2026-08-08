@@ -8,9 +8,14 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * OpenCode 独立运行时使用的 OkHttpClient 工厂。
+ * Factory for creating {@link OkHttpClient} instances used by the OpenCode SDK in standalone mode.
  *
- * <p>Spring 容器已经提供外部 {@link OkHttpClient} 时应使用注入构造器，本工厂不会参与。</p>
+ * <p>When a Spring container already provides an external {@link OkHttpClient}, the injection
+ * constructors should be used instead and this factory will not participate.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClientConfig
  */
 public final class OpenCodeOkHttpClientFactory {
 

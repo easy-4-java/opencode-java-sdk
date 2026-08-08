@@ -10,7 +10,16 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 探测本机 {@code opencode} 是否已安装且可执行 {@code opencode --version}。
+ * Checks whether the local {@code opencode} CLI is installed and can execute {@code opencode --version}.
+ *
+ * <p>Resolves the configured executable path (absolute/relative or via {@code PATH}),
+ * then runs a version probe with a short timeout. Returns an {@link OpenCodeCliAvailabilityReport}
+ * with the detailed status.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeCliAvailabilityReport
+ * @see OpenCodeCliAvailabilityStatus
  */
 public class OpenCodeCliAvailabilityChecker {
 

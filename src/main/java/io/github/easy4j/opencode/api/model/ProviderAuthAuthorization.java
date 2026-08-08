@@ -5,7 +5,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * Provider OAuth 授权响应，对应 {@code POST /provider/:id/oauth/authorize}。
+ * Represents a provider OAuth authorization response, returned by
+ * {@code POST /provider/:id/oauth/authorize}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#providerOAuthAuthorize(String, String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

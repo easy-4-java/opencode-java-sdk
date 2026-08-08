@@ -7,7 +7,11 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * ripgrep 文本搜索结果，对应 {@code GET /find} 响应元素。
+ * Represents a ripgrep text search result returned by {@code GET /find}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#find(String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
