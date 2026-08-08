@@ -21,6 +21,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * OpenCode 客户端门面：HTTP Server + SSE 事件流 + 本地 CLI。
@@ -226,6 +227,7 @@ public class OpenCodeClient implements AutoCloseable {
     // ============================================================
 
     private void copyHttpConfig(OpenCodeHttpClientConfig src) {
+        this.config.getHttp().setMode(src.getMode());
         this.config.getHttp().setEnabled(src.isEnabled());
         this.config.getHttp().setStartupCheckEnabled(src.isStartupCheckEnabled());
         this.config.getHttp().setFailFastOnUnavailable(src.isFailFastOnUnavailable());
@@ -244,7 +246,7 @@ public class OpenCodeClient implements AutoCloseable {
         this.config.getHttp().setStreamMaxPoolSize(src.getStreamMaxPoolSize());
         this.config.getHttp().setStreamQueueCapacity(src.getStreamQueueCapacity());
         this.config.getHttp().setStreamKeepAliveMillis(src.getStreamKeepAliveMillis());
-        this.config.getHttp().setSseEventQueueCapacity(src.getSseEventQueueCapacity());
+        this.config.getHttp().setStreamEventQueueCapacity(src.getStreamEventQueueCapacity());
         this.config.getHttp().setRetryOnConnectionFailure(src.isRetryOnConnectionFailure());
         this.config.getHttp().setVerifySsl(src.isVerifySsl());
         this.config.getHttp().setDefaultModel(src.getDefaultModel());
@@ -360,10 +362,19 @@ public class OpenCodeClient implements AutoCloseable {
 
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context) {
+        return chatCompletionStream(request, sessionKey, context, null);
+    }
+
+    /**
+     * 流式对话，并在订阅启动前绑定增量回调，避免丢失首批分片。
+     */
+    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+                                                       OpenCodeRequestContext context,
+                                                       Consumer<String> deltaConsumer) {
         String sessionId = httpClient.ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 
-        ChatStreamingResponse stream = new ChatStreamingResponse();
+        ChatStreamingResponse stream = new ChatStreamingResponse().onDelta(deltaConsumer);
 
         OpenCodeSseClient.QueueSubscription subscription =
                 sseClient.subscribeQueueSubscription(context);
