@@ -120,7 +120,7 @@ public class OpenCodeClient implements AutoCloseable {
             this.chatClient = null;
             this.sseClient = null;
         }
-        this.streamExecutor = this.chatClient == null ? createStreamExecutor(httpConfig) : null;
+        this.streamExecutor = createStreamExecutor(httpConfig);
 
         // CLI 子系统初始化
         if (cliEnabled) {
@@ -159,7 +159,7 @@ public class OpenCodeClient implements AutoCloseable {
         this.chatClient = httpClient instanceof OpenCodeChatClient ? (OpenCodeChatClient) httpClient : null;
         this.sseClient = sseClient;
         this.cli = cli;
-        this.streamExecutor = this.chatClient == null ? createStreamExecutor(config.getHttp()) : null;
+        this.streamExecutor = createStreamExecutor(config.getHttp());
     }
 
     private static ExecutorService createStreamExecutor(OpenCodeHttpClientConfig config) {
@@ -375,9 +375,6 @@ public class OpenCodeClient implements AutoCloseable {
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context,
                                                        Consumer<String> deltaConsumer) {
-        if (chatClient != null) {
-            return chatClient.chatCompletionStream(request, sessionKey, context, deltaConsumer);
-        }
         String sessionId = httpClient.ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 

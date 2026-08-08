@@ -6,7 +6,7 @@ import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
 import io.github.easy4j.opencode.api.mapper.ChatMessageMapper;
 import io.github.easy4j.opencode.api.model.ChatRequest;
 import io.github.easy4j.opencode.api.model.ChatResponse;
-import io.github.easy4j.opencode.api.model.ChatStreamingResponse;
+import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
 import io.github.easy4j.opencode.api.model.Event;
 import io.github.easy4j.opencode.api.model.PromptRequest;
 import io.github.easy4j.opencode.api.model.PromptResult;
@@ -78,22 +78,22 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
         return ChatMessageMapper.toChatResponse(result);
     }
 
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey) {
         return chatCompletionStream(request, sessionKey, null, null);
     }
 
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context) {
         return chatCompletionStream(request, sessionKey, context, null);
     }
 
     /** 在事件订阅启动前绑定增量回调，避免丢失首批分片。 */
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context,
                                                        Consumer<String> deltaConsumer) {
         String sessionId = ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
-        ChatStreamingResponse stream = new ChatStreamingResponse().onDelta(deltaConsumer);
+        StreamingChatResponse stream = new StreamingChatResponse().onDelta(deltaConsumer);
         OpenCodeSseClient.QueueSubscription subscription = eventClient.subscribeQueueSubscription(context);
         BlockingQueue<Event> queue = subscription.getQueue();
 
@@ -119,7 +119,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
 
     private void consumeEvents(String sessionId, BlockingQueue<Event> queue,
                                OpenCodeSseClient.QueueSubscription subscription,
-                               ChatStreamingResponse stream) {
+                               StreamingChatResponse stream) {
         try {
             long timeoutMillis = Math.max(1L, config.getReadTimeoutMillis());
             long deadline = System.currentTimeMillis() + timeoutMillis;
