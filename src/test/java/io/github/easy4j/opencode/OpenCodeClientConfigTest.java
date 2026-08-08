@@ -21,8 +21,8 @@ class OpenCodeClientConfigTest {
     @Test
     void shouldShareSubConfigReferences() {
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        config.getHttp().setServerUrl("http://custom:8080");
-        assertEquals("http://custom:8080", config.getHttp().getServerUrl());
+        config.getHttp().setBaseUrl("http://custom:8080");
+        assertEquals("http://custom:8080", config.getHttp().getBaseUrl());
 
         config.getCli().setExecutable("my-opencode");
         assertEquals("my-opencode", config.getCli().getExecutable());
