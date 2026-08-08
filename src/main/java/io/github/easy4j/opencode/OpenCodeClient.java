@@ -15,6 +15,12 @@ import okhttp3.OkHttpClient;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * OpenCode 客户端门面：HTTP Server + SSE 事件流 + 本地 CLI。
@@ -48,6 +54,7 @@ public class OpenCodeClient implements AutoCloseable {
     private final OpenCodeHttpClient httpClient;
     private final OpenCodeSseClient sseClient;
     private final OpenCodeCli cli;
+    private final ExecutorService streamExecutor;
 
     // ============================================================
     // 构造器
@@ -55,7 +62,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** 仅 HTTP 子系统（CLI 禁用）。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig) {
-        this(httpConfig, new OpenCodeCliConfig(), new ObjectMapper(), new OkHttpClient());
+        this(httpConfig, new OpenCodeCliConfig(), new ObjectMapper(), null);
     }
 
     /** 仅 HTTP 子系统（CLI 禁用），强制注入共享 ObjectMapper 与 OkHttpClient。 */
@@ -65,7 +72,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** 仅 CLI 子系统（HTTP 禁用）。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeCliConfig cliConfig) {
-        this(new OpenCodeHttpClientConfig(), cliConfig, new ObjectMapper(), new OkHttpClient());
+        this(new OpenCodeHttpClientConfig(), cliConfig, new ObjectMapper(), null);
     }
 
     /** 仅 CLI 子系统（HTTP 禁用），强制注入共享 ObjectMapper 与 OkHttpClient。 */
@@ -75,7 +82,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** HTTP + CLI 子系统。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig) {
-        this(httpConfig, cliConfig, new ObjectMapper(), new OkHttpClient());
+        this(httpConfig, cliConfig, new ObjectMapper(), null);
     }
 
     /**
@@ -91,7 +98,6 @@ public class OpenCodeClient implements AutoCloseable {
         Objects.requireNonNull(httpConfig, "httpConfig");
         Objects.requireNonNull(cliConfig, "cliConfig");
         Objects.requireNonNull(objectMapper, "objectMapper");
-        Objects.requireNonNull(httpClient, "httpClient");
 
         boolean httpEnabled = httpConfig.isEnabled();
         boolean cliEnabled = cliConfig.isEnabled();
@@ -105,11 +111,12 @@ public class OpenCodeClient implements AutoCloseable {
         if (httpEnabled) {
             this.httpClient = new OpenCodeHttpClient(httpConfig, objectMapper, httpClient);
             this.sseClient = new OpenCodeSseClient(httpConfig, objectMapper,
-                    httpClient != null ? httpClient : this.httpClient.getOkHttpClient());
+                    this.httpClient.getOkHttpClient());
         } else {
             this.httpClient = null;
             this.sseClient = null;
         }
+        this.streamExecutor = createStreamExecutor(httpConfig);
 
         // CLI 子系统初始化
         if (cliEnabled) {
@@ -124,7 +131,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** 组合配置，自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeClientConfig config) {
-        this(config, new ObjectMapper(), new OkHttpClient());
+        this(config, new ObjectMapper(), null);
     }
 
     /** 组合配置，强制注入共享 ObjectMapper 与 OkHttpClient。 */
@@ -147,6 +154,21 @@ public class OpenCodeClient implements AutoCloseable {
         this.httpClient = httpClient;
         this.sseClient = sseClient;
         this.cli = cli;
+        this.streamExecutor = createStreamExecutor(config.getHttp());
+    }
+
+    private static ExecutorService createStreamExecutor(OpenCodeHttpClientConfig config) {
+        int corePoolSize = Math.max(1, config.getStreamCorePoolSize());
+        int maxPoolSize = Math.max(corePoolSize, config.getStreamMaxPoolSize());
+        AtomicInteger threadIndex = new AtomicInteger();
+        return new ThreadPoolExecutor(corePoolSize, maxPoolSize,
+                Math.max(1L, config.getStreamKeepAliveMillis()), TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(Math.max(1, config.getStreamQueueCapacity())), runnable -> {
+                    Thread thread = new Thread(runnable,
+                            "opencode-stream-consumer-" + threadIndex.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                }, new ThreadPoolExecutor.AbortPolicy());
     }
 
     // ============================================================
@@ -218,6 +240,11 @@ public class OpenCodeClient implements AutoCloseable {
         this.config.getHttp().setKeepAliveDurationMillis(src.getKeepAliveDurationMillis());
         this.config.getHttp().setMaxRequests(src.getMaxRequests());
         this.config.getHttp().setMaxRequestsPerHost(src.getMaxRequestsPerHost());
+        this.config.getHttp().setStreamCorePoolSize(src.getStreamCorePoolSize());
+        this.config.getHttp().setStreamMaxPoolSize(src.getStreamMaxPoolSize());
+        this.config.getHttp().setStreamQueueCapacity(src.getStreamQueueCapacity());
+        this.config.getHttp().setStreamKeepAliveMillis(src.getStreamKeepAliveMillis());
+        this.config.getHttp().setSseEventQueueCapacity(src.getSseEventQueueCapacity());
         this.config.getHttp().setRetryOnConnectionFailure(src.isRetryOnConnectionFailure());
         this.config.getHttp().setVerifySsl(src.isVerifySsl());
         this.config.getHttp().setDefaultModel(src.getDefaultModel());
@@ -287,6 +314,11 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.chatCompletionWithSession(request, sessionKey);
     }
 
+    public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey,
+                                                  HttpCallCancellation cancellation) {
+        return httpClient.chatCompletionWithSession(request, sessionKey, cancellation);
+    }
+
     public PromptResult chatCompletionWithSession(String text, String sessionKey) {
         return httpClient.chatCompletionWithSession(PromptRequest.ofText(text), sessionKey);
     }
@@ -315,6 +347,13 @@ public class OpenCodeClient implements AutoCloseable {
         return ChatMessageMapper.toChatResponse(result);
     }
 
+    public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey,
+                                                  HttpCallCancellation cancellation) {
+        PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
+        PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey, cancellation);
+        return ChatMessageMapper.toChatResponse(result);
+    }
+
     public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
         return chatCompletionStream(request, sessionKey, null);
     }
@@ -326,9 +365,12 @@ public class OpenCodeClient implements AutoCloseable {
 
         ChatStreamingResponse stream = new ChatStreamingResponse();
 
-        java.util.concurrent.BlockingQueue<Event> queue = sseClient.subscribeQueue(context);
+        OpenCodeSseClient.QueueSubscription subscription =
+                sseClient.subscribeQueueSubscription(context);
+        java.util.concurrent.BlockingQueue<Event> queue = subscription.getQueue();
 
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
+        try {
+            streamExecutor.submit(() -> {
             try {
                 long deadline = System.currentTimeMillis() + (config.getCli().getTimeout() * 1000L);
                 while (!stream.isDone() && System.currentTimeMillis() < deadline) {
@@ -379,10 +421,25 @@ public class OpenCodeClient implements AutoCloseable {
                 stream.fail(e);
             } catch (Exception e) {
                 stream.fail(e);
+            } finally {
+                subscription.close();
             }
-        });
+            });
+        } catch (RejectedExecutionException error) {
+            subscription.close();
+            stream.fail(new IllegalStateException("OpenCode stream executor is full", error));
+            return stream;
+        }
 
-        httpClient.promptAsync(sessionId, promptRequest, context);
+        try {
+            if (!httpClient.promptAsync(sessionId, promptRequest, context)) {
+                subscription.close();
+                stream.fail(new IllegalStateException("OpenCode async prompt was rejected"));
+            }
+        } catch (RuntimeException error) {
+            subscription.close();
+            stream.fail(error);
+        }
 
         return stream;
     }
@@ -895,6 +952,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     @Override
     public void close() {
+        streamExecutor.shutdownNow();
         if (httpClient != null) httpClient.close();
         if (sseClient != null) sseClient.close();
     }

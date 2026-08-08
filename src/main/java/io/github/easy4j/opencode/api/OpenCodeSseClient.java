@@ -17,8 +17,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.Collections;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -32,7 +34,7 @@ public class OpenCodeSseClient implements AutoCloseable {
     private final OpenCodeHttpClientConfig config;
     private final ObjectMapper mapper;
     private final OkHttpClient httpClient;
-    private volatile EventSource eventSource;
+    private final Set<EventSource> eventSources = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     public OpenCodeSseClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this.config = config;
@@ -84,11 +86,13 @@ public class OpenCodeSseClient implements AutoCloseable {
 
             @Override
             public void onClosed(EventSource es) {
+                eventSources.remove(es);
                 log.info("SSE connection closed");
             }
 
             @Override
             public void onFailure(EventSource es, Throwable t, Response response) {
+                eventSources.remove(es);
                 if (response != null) {
                     log.warn("SSE connection failed, status={}", response.code(), t);
                 } else {
@@ -96,8 +100,9 @@ public class OpenCodeSseClient implements AutoCloseable {
                 }
             }
         };
-        this.eventSource = EventSources.createFactory(httpClient).newEventSource(request, listener);
-        return this.eventSource;
+        EventSource eventSource = EventSources.createFactory(httpClient).newEventSource(request, listener);
+        eventSources.add(eventSource);
+        return eventSource;
     }
 
     /**
@@ -108,9 +113,22 @@ public class OpenCodeSseClient implements AutoCloseable {
     }
 
     public BlockingQueue<Event> subscribeQueue(OpenCodeRequestContext context) {
-        BlockingQueue<Event> queue = new LinkedBlockingQueue<>();
-        subscribe(queue::add, context);
-        return queue;
+        return subscribeQueueSubscription(context).getQueue();
+    }
+
+    public QueueSubscription subscribeQueueSubscription(OpenCodeRequestContext context) {
+        BlockingQueue<Event> queue = new ArrayBlockingQueue<>(
+                Math.max(1, config.getSseEventQueueCapacity()));
+        EventSource source = subscribe(event -> offerLatest(queue, event), context);
+        return new QueueSubscription(queue, source);
+    }
+
+    private void offerLatest(BlockingQueue<Event> queue, Event event) {
+        if (!queue.offer(event)) {
+            queue.poll();
+            queue.offer(event);
+            log.warn("OpenCode SSE event queue is full; discarded oldest event");
+        }
     }
 
     /**
@@ -208,14 +226,34 @@ public class OpenCodeSseClient implements AutoCloseable {
      * 停止事件流订阅。
      */
     public void stop() {
-        if (eventSource != null) {
+        for (EventSource eventSource : eventSources) {
             eventSource.cancel();
-            eventSource = null;
         }
+        eventSources.clear();
     }
 
     @Override
     public void close() {
         stop();
+    }
+
+    public static final class QueueSubscription implements AutoCloseable {
+
+        private final BlockingQueue<Event> queue;
+        private final EventSource eventSource;
+
+        private QueueSubscription(BlockingQueue<Event> queue, EventSource eventSource) {
+            this.queue = queue;
+            this.eventSource = eventSource;
+        }
+
+        public BlockingQueue<Event> getQueue() {
+            return queue;
+        }
+
+        @Override
+        public void close() {
+            eventSource.cancel();
+        }
     }
 }

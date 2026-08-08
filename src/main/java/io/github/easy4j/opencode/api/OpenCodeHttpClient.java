@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
+import io.github.easy4j.opencode.HttpCallCancellation;
 import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
 import io.github.easy4j.opencode.api.model.*;
 import io.github.easy4j.opencode.exception.OpenCodeHttpException;
@@ -64,8 +65,13 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     public Session createSession(String title, OpenCodeRequestContext context) {
+        return createSession(title, context, null);
+    }
+
+    public Session createSession(String title, OpenCodeRequestContext context,
+                                 HttpCallCancellation cancellation) {
         Map<String, Object> body = title != null ? Collections.singletonMap("title", title) : Collections.emptyMap();
-        return post("/session", body, Session.class, context);
+        return post("/session", body, Session.class, context, cancellation);
     }
 
     public Session getSession(String sessionId) {
@@ -90,6 +96,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     public List<Session> listSessions(String search, Integer limit, Integer start,
                                       OpenCodeRequestContext context) {
+        return listSessions(search, limit, start, context, null);
+    }
+
+    private List<Session> listSessions(String search, Integer limit, Integer start,
+                                       OpenCodeRequestContext context,
+                                       HttpCallCancellation cancellation) {
         Map<String, String> params = new HashMap<>();
         if (search != null) params.put("search", search);
         if (limit != null) params.put("limit", String.valueOf(limit));
@@ -100,7 +112,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
             urlBuilder.addQueryParameter(entry.getKey(), entry.getValue());
         }
         Request request = authedRequest(urlBuilder.build().toString(), context).get().build();
-        return executeList(request, new TypeReference<List<Session>>() {});
+        return executeList(request, new TypeReference<List<Session>>() {}, cancellation);
     }
 
     /**
@@ -111,10 +123,15 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     public Optional<Session> findSessionByTitle(String title, OpenCodeRequestContext context) {
+        return findSessionByTitle(title, context, null);
+    }
+
+    public Optional<Session> findSessionByTitle(String title, OpenCodeRequestContext context,
+                                                HttpCallCancellation cancellation) {
         if (title == null || title.isEmpty()) {
             return Optional.empty();
         }
-        return listSessions(title, 50, null, context).stream()
+        return listSessions(title, 50, null, context, cancellation).stream()
                 .filter(s -> Objects.equals(title, s.getTitle()))
                 .findFirst();
     }
@@ -131,9 +148,21 @@ public class OpenCodeHttpClient implements AutoCloseable {
         return post("/session/" + sessionId + "/message", request, PromptResult.class);
     }
 
+    public PromptResult prompt(String sessionId, PromptRequest request,
+                               HttpCallCancellation cancellation) {
+        return post("/session/" + sessionId + "/message", request, PromptResult.class,
+                null, cancellation);
+    }
+
     public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey) {
         String sessionId = ensureSession(sessionKey);
         return prompt(sessionId, request);
+    }
+
+    public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey,
+                                                  HttpCallCancellation cancellation) {
+        String sessionId = ensureSession(sessionKey, null, cancellation);
+        return prompt(sessionId, request, cancellation);
     }
 
     public boolean chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
@@ -146,15 +175,24 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     public String ensureSession(String sessionKey, OpenCodeRequestContext context) {
+        return ensureSession(sessionKey, context, null);
+    }
+
+    public String ensureSession(String sessionKey, OpenCodeRequestContext context,
+                                HttpCallCancellation cancellation) {
         try {
-            Optional<Session> existing = findSessionByTitle(sessionKey, context);
+            Optional<Session> existing = findSessionByTitle(sessionKey, context, cancellation);
             if (existing.isPresent()) {
                 return existing.get().getId();
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            if (Thread.currentThread().isInterrupted()
+                    || cancellation != null && cancellation.isCancelled()) {
+                throw e;
+            }
             log.debug("findSessionByTitle failed, sessionKey={}, error={}", sessionKey, e.getMessage());
         }
-        Session session = createSession(sessionKey, context);
+        Session session = createSession(sessionKey, context, cancellation);
         return session.getId();
     }
 
@@ -749,10 +787,15 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private <T> T post(String path, Object body, Class<T> type, OpenCodeRequestContext context) {
+        return post(path, body, type, context, null);
+    }
+
+    private <T> T post(String path, Object body, Class<T> type, OpenCodeRequestContext context,
+                       HttpCallCancellation cancellation) {
         Request request = authedRequest(url(path), context)
                 .post(RequestBody.create(toJson(body), JSON))
                 .build();
-        return execute(request, type);
+        return execute(request, type, cancellation);
     }
 
     private <T> T patch(String path, Object body, Class<T> type) {
@@ -826,7 +869,13 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private <T> T execute(Request request, Class<T> type) {
-        try (Response response = httpClient.newCall(request).execute()) {
+        return execute(request, type, null);
+    }
+
+    private <T> T execute(Request request, Class<T> type, HttpCallCancellation cancellation) {
+        Call call = httpClient.newCall(request);
+        AutoCloseable registration = cancellation != null ? cancellation.onCancel(call::cancel) : null;
+        try (Response response = call.execute()) {
             String respBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 throw new OpenCodeHttpException(response.code(), respBody);
@@ -834,11 +883,31 @@ public class OpenCodeHttpClient implements AutoCloseable {
             return objectMapper.readValue(respBody, type);
         } catch (IOException e) {
             throw new OpenCodeHttpException("HTTP request failed: " + e.getMessage(), e);
+        } finally {
+            closeRegistration(registration);
+        }
+    }
+
+    private void closeRegistration(AutoCloseable registration) {
+        if (registration == null) {
+            return;
+        }
+        try {
+            registration.close();
+        } catch (Exception error) {
+            log.debug("Failed to unregister HTTP cancellation callback: {}", error.getMessage());
         }
     }
 
     private <T> T executeList(Request request, TypeReference<T> typeRef) {
-        try (Response response = httpClient.newCall(request).execute()) {
+        return executeList(request, typeRef, null);
+    }
+
+    private <T> T executeList(Request request, TypeReference<T> typeRef,
+                              HttpCallCancellation cancellation) {
+        Call call = httpClient.newCall(request);
+        AutoCloseable registration = cancellation != null ? cancellation.onCancel(call::cancel) : null;
+        try (Response response = call.execute()) {
             String respBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 throw new OpenCodeHttpException(response.code(), respBody);
@@ -846,6 +915,8 @@ public class OpenCodeHttpClient implements AutoCloseable {
             return objectMapper.readValue(respBody, typeRef);
         } catch (IOException e) {
             throw new OpenCodeHttpException("HTTP request failed: " + e.getMessage(), e);
+        } finally {
+            closeRegistration(registration);
         }
     }
 
