@@ -212,6 +212,13 @@ public class OpenCodeClient implements AutoCloseable {
         this.config.getHttp().setPassword(src.getPassword());
         this.config.getHttp().setConnectTimeoutMillis(src.getConnectTimeoutMillis());
         this.config.getHttp().setReadTimeoutMillis(src.getReadTimeoutMillis());
+        this.config.getHttp().setWriteTimeoutMillis(src.getWriteTimeoutMillis());
+        this.config.getHttp().setCallTimeoutMillis(src.getCallTimeoutMillis());
+        this.config.getHttp().setMaxIdleConnections(src.getMaxIdleConnections());
+        this.config.getHttp().setKeepAliveDurationMillis(src.getKeepAliveDurationMillis());
+        this.config.getHttp().setMaxRequests(src.getMaxRequests());
+        this.config.getHttp().setMaxRequestsPerHost(src.getMaxRequestsPerHost());
+        this.config.getHttp().setRetryOnConnectionFailure(src.isRetryOnConnectionFailure());
         this.config.getHttp().setVerifySsl(src.isVerifySsl());
         this.config.getHttp().setDefaultModel(src.getDefaultModel());
         this.config.getHttp().setDefaultAgent(src.getDefaultAgent());

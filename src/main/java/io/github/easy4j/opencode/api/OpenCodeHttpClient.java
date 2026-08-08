@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
+import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
 import io.github.easy4j.opencode.api.model.*;
 import io.github.easy4j.opencode.exception.OpenCodeHttpException;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 /**
  * OpenCode Server HTTP 客户端，封装 REST API。
@@ -44,14 +44,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
-        // 兜底创建
-        OkHttpClient.Builder builder = new OkHttpClient.Builder()
-                .connectTimeout(config.getConnectTimeoutMillis(), TimeUnit.MILLISECONDS)
-                .readTimeout(config.getReadTimeoutMillis(), TimeUnit.MILLISECONDS);
-        if (!config.isVerifySsl()) {
-            builder.hostnameVerifier((hostname, session) -> true);
-        }
-        return builder.build();
+        return OpenCodeOkHttpClientFactory.create(config);
     }
 
     // ============================================================
