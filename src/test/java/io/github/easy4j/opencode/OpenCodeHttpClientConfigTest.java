@@ -16,7 +16,7 @@ class OpenCodeHttpClientConfigTest {
         assertTrue(config.isEnabled());
         assertFalse(config.isStartupCheckEnabled());
         assertFalse(config.isFailFastOnUnavailable());
-        assertEquals("http://localhost:4096", config.getServerUrl());
+        assertEquals("http://localhost:4096", config.getBaseUrl());
         assertEquals("opencode", config.getUsername());
         assertNull(config.getPassword());
         assertEquals(15_000, config.getConnectTimeoutMillis());
@@ -55,7 +55,7 @@ class OpenCodeHttpClientConfigTest {
     @Test
     void shouldKeepLegacySseEventQueueAlias() {
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
-        config.setSseEventQueueCapacity(17);
+        config.setStreamEventQueueCapacity(17);
         assertEquals(17, config.getStreamEventQueueCapacity());
     }
 }
