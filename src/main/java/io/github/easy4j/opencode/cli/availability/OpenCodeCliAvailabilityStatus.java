@@ -1,7 +1,11 @@
 package io.github.easy4j.opencode.cli.availability;
 
 /**
- * OpenCode CLI 可用性探测结论分类。
+ * Enumeration of possible outcomes from an OpenCode CLI availability probe.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeCliAvailabilityReport
  */
 public enum OpenCodeCliAvailabilityStatus {
 

@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * LSP 工作区符号，对应 {@code GET /find/symbol} 响应元素。
+ * Represents an LSP workspace symbol, returned by {@code GET /find/symbol}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#findSymbols(String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

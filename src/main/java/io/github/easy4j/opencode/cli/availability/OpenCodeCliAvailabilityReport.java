@@ -5,7 +5,12 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * OpenCode CLI 启动/就绪探测结果。
+ * Report produced by the CLI availability probe during startup or readiness checks.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeCliAvailabilityChecker
+ * @see OpenCodeCliAvailabilityStatus
  */
 @Getter
 @Builder

@@ -3,7 +3,11 @@ package io.github.easy4j.opencode.exception;
 import lombok.Getter;
 
 /**
- * OpenCode HTTP 请求失败异常。
+ * Exception thrown when an OpenCode HTTP request fails.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeException
  */
 @Getter
 public class OpenCodeHttpException extends OpenCodeException {

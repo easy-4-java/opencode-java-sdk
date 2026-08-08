@@ -7,47 +7,65 @@ import io.github.easy4j.opencode.cli.OpenCodeCli;
 import io.github.easy4j.opencode.cli.OpenCodeCliExecutor;
 import io.github.easy4j.opencode.cli.availability.OpenCodeCliAvailabilityReport;
 import io.github.easy4j.opencode.api.OpenCodeHttpClient;
+import io.github.easy4j.opencode.api.OpenCodeChatClient;
 import io.github.easy4j.opencode.api.OpenCodeRequestContext;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
+import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
- * OpenCode 客户端门面：HTTP Server + SSE 事件流 + 本地 CLI。
- * <p>
- * 三条通信通道相互独立，按各自子配置的 {@code enabled} 决定是否创建：
- * </p>
+ * Facade client for OpenCode: HTTP Server + SSE event stream + local CLI.
+ *
+ * <p>Three communication channels are independent of each other and are created based on
+ * the {@code enabled} flag in their respective sub-configurations:</p>
  * <ul>
- *     <li>{@link OpenCodeHttpClientConfig#isEnabled()} = false → HTTP / SSE 子客户端为 {@code null}</li>
- *     <li>{@link OpenCodeCliConfig#isEnabled()} = false → CLI 子客户端为 {@code null}</li>
+ *     <li>{@link OpenCodeHttpClientConfig#isEnabled()} = false -> HTTP/SSE sub-clients are {@code null}</li>
+ *     <li>{@link OpenCodeCliConfig#isEnabled()} = false -> CLI sub-client is {@code null}</li>
  * </ul>
  *
- * <h3>构造器选择</h3>
- * <p>提供 8 个重载覆盖三类场景：</p>
+ * <h3>Constructor Selection</h3>
+ * <p>Eight overloads cover three scenarios:</p>
  * <ul>
- *     <li>仅 HTTP / 仅 CLI：传入单个子配置，禁用另一子系统</li>
- *     <li>HTTP + CLI：传入两个子配置，子系统都按各自 {@code enabled} 决定</li>
- *     <li>组合配置：传入 {@link OpenCodeClientConfig}，内部拆分为两个子配置</li>
+ *     <li>HTTP only / CLI only: pass a single sub-config; the other subsystem is disabled</li>
+ *     <li>HTTP + CLI: pass two sub-configs; each subsystem is enabled per its own {@code enabled} flag</li>
+ *     <li>Combined config: pass {@link OpenCodeClientConfig}; internally split into two sub-configs</li>
  * </ul>
- * <p>每种场景再分「自动 ObjectMapper/OkHttpClient」与「强制注入」两个变体。
- * 强制注入的版本对 {@code ObjectMapper}/{@code OkHttpClient} 进行 {@code requireNonNull} 校验。</p>
+ * <p>Each scenario has a variant with auto-created ObjectMapper/OkHttpClient and a variant with
+ * forced injection (the injected version applies {@code requireNonNull} validation).</p>
  *
- * <h3>启动自检</h3>
- * <p>主构造器在子系统初始化后按 {@code startupCheckEnabled} 与 {@code failFastOnUnavailable}
- * 执行健康探测（HTTP：{@code GET /global/health}；CLI：{@code opencode --version}）。
- * 探测失败但未开启 fail-fast 时仅 WARN，不中断构造。</p>
+ * <h3>Startup Health Checks</h3>
+ * <p>After subsystem initialization, the primary constructor runs health probes based on
+ * {@code startupCheckEnabled} and {@code failFastOnUnavailable} (HTTP: {@code GET /global/health};
+ * CLI: {@code opencode --version}). If the probe fails but fail-fast is not enabled, only a
+ * WARN log is emitted and construction continues.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClientConfig
+ * @see OpenCodeCliConfig
+ * @see OpenCodeClientConfig
  */
 @Slf4j
 public class OpenCodeClient implements AutoCloseable {
 
     private final OpenCodeClientConfig config;
     private final OpenCodeHttpClient httpClient;
+    private final OpenCodeChatClient chatClient;
     private final OpenCodeSseClient sseClient;
     private final OpenCodeCli cli;
+    private final ExecutorService streamExecutor;
 
     // ============================================================
     // 构造器
@@ -55,7 +73,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** 仅 HTTP 子系统（CLI 禁用）。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig) {
-        this(httpConfig, new OpenCodeCliConfig(), new ObjectMapper(), new OkHttpClient());
+        this(httpConfig, new OpenCodeCliConfig(), new ObjectMapper(), null);
     }
 
     /** 仅 HTTP 子系统（CLI 禁用），强制注入共享 ObjectMapper 与 OkHttpClient。 */
@@ -65,7 +83,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** 仅 CLI 子系统（HTTP 禁用）。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeCliConfig cliConfig) {
-        this(new OpenCodeHttpClientConfig(), cliConfig, new ObjectMapper(), new OkHttpClient());
+        this(new OpenCodeHttpClientConfig(), cliConfig, new ObjectMapper(), null);
     }
 
     /** 仅 CLI 子系统（HTTP 禁用），强制注入共享 ObjectMapper 与 OkHttpClient。 */
@@ -75,7 +93,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** HTTP + CLI 子系统。自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig) {
-        this(httpConfig, cliConfig, new ObjectMapper(), new OkHttpClient());
+        this(httpConfig, cliConfig, new ObjectMapper(), null);
     }
 
     /**
@@ -91,7 +109,6 @@ public class OpenCodeClient implements AutoCloseable {
         Objects.requireNonNull(httpConfig, "httpConfig");
         Objects.requireNonNull(cliConfig, "cliConfig");
         Objects.requireNonNull(objectMapper, "objectMapper");
-        Objects.requireNonNull(httpClient, "httpClient");
 
         boolean httpEnabled = httpConfig.isEnabled();
         boolean cliEnabled = cliConfig.isEnabled();
@@ -103,13 +120,15 @@ public class OpenCodeClient implements AutoCloseable {
 
         // HTTP 子系统初始化
         if (httpEnabled) {
-            this.httpClient = new OpenCodeHttpClient(httpConfig, objectMapper, httpClient);
-            this.sseClient = new OpenCodeSseClient(httpConfig, objectMapper,
-                    httpClient != null ? httpClient : this.httpClient.getOkHttpClient());
+            this.chatClient = new OpenCodeChatClient(httpConfig, objectMapper, httpClient);
+            this.httpClient = this.chatClient;
+            this.sseClient = this.chatClient.events();
         } else {
             this.httpClient = null;
+            this.chatClient = null;
             this.sseClient = null;
         }
+        this.streamExecutor = createStreamExecutor(httpConfig);
 
         // CLI 子系统初始化
         if (cliEnabled) {
@@ -124,7 +143,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     /** 组合配置，自动创建默认 ObjectMapper 与 OkHttpClient。 */
     public OpenCodeClient(OpenCodeClientConfig config) {
-        this(config, new ObjectMapper(), new OkHttpClient());
+        this(config, new ObjectMapper(), null);
     }
 
     /** 组合配置，强制注入共享 ObjectMapper 与 OkHttpClient。 */
@@ -145,8 +164,24 @@ public class OpenCodeClient implements AutoCloseable {
                           OpenCodeCli cli) {
         this.config = Objects.requireNonNull(config, "config");
         this.httpClient = httpClient;
+        this.chatClient = httpClient instanceof OpenCodeChatClient ? (OpenCodeChatClient) httpClient : null;
         this.sseClient = sseClient;
         this.cli = cli;
+        this.streamExecutor = createStreamExecutor(config.getHttp());
+    }
+
+    private static ExecutorService createStreamExecutor(OpenCodeHttpClientConfig config) {
+        int corePoolSize = Math.max(1, config.getStreamCorePoolSize());
+        int maxPoolSize = Math.max(corePoolSize, config.getStreamMaxPoolSize());
+        AtomicInteger threadIndex = new AtomicInteger();
+        return new ThreadPoolExecutor(corePoolSize, maxPoolSize,
+                Math.max(1L, config.getStreamKeepAliveMillis()), TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(Math.max(1, config.getStreamQueueCapacity())), runnable -> {
+                    Thread thread = new Thread(runnable,
+                            "opencode-stream-consumer-" + threadIndex.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                }, new ThreadPoolExecutor.AbortPolicy());
     }
 
     // ============================================================
@@ -157,7 +192,7 @@ public class OpenCodeClient implements AutoCloseable {
         if (httpConfig.isEnabled() && httpConfig.isStartupCheckEnabled()) {
             try {
                 httpClient.health();
-                log.info("OpenCode HTTP health check passed: {}", httpConfig.getServerUrl());
+                log.info("OpenCode HTTP health check passed: {}", httpConfig.getBaseUrl());
             } catch (Exception e) {
                 if (httpConfig.isFailFastOnUnavailable()) {
                     throw new IllegalStateException(
@@ -204,14 +239,27 @@ public class OpenCodeClient implements AutoCloseable {
     // ============================================================
 
     private void copyHttpConfig(OpenCodeHttpClientConfig src) {
+        this.config.getHttp().setMode(src.getMode());
         this.config.getHttp().setEnabled(src.isEnabled());
         this.config.getHttp().setStartupCheckEnabled(src.isStartupCheckEnabled());
         this.config.getHttp().setFailFastOnUnavailable(src.isFailFastOnUnavailable());
-        this.config.getHttp().setServerUrl(src.getServerUrl());
+        this.config.getHttp().setBaseUrl(src.getBaseUrl());
         this.config.getHttp().setUsername(src.getUsername());
         this.config.getHttp().setPassword(src.getPassword());
         this.config.getHttp().setConnectTimeoutMillis(src.getConnectTimeoutMillis());
         this.config.getHttp().setReadTimeoutMillis(src.getReadTimeoutMillis());
+        this.config.getHttp().setWriteTimeoutMillis(src.getWriteTimeoutMillis());
+        this.config.getHttp().setCallTimeoutMillis(src.getCallTimeoutMillis());
+        this.config.getHttp().setMaxIdleConnections(src.getMaxIdleConnections());
+        this.config.getHttp().setKeepAliveDurationMillis(src.getKeepAliveDurationMillis());
+        this.config.getHttp().setMaxRequests(src.getMaxRequests());
+        this.config.getHttp().setMaxRequestsPerHost(src.getMaxRequestsPerHost());
+        this.config.getHttp().setStreamCorePoolSize(src.getStreamCorePoolSize());
+        this.config.getHttp().setStreamMaxPoolSize(src.getStreamMaxPoolSize());
+        this.config.getHttp().setStreamQueueCapacity(src.getStreamQueueCapacity());
+        this.config.getHttp().setStreamKeepAliveMillis(src.getStreamKeepAliveMillis());
+        this.config.getHttp().setStreamEventQueueCapacity(src.getStreamEventQueueCapacity());
+        this.config.getHttp().setRetryOnConnectionFailure(src.isRetryOnConnectionFailure());
         this.config.getHttp().setVerifySsl(src.isVerifySsl());
         this.config.getHttp().setDefaultModel(src.getDefaultModel());
         this.config.getHttp().setDefaultAgent(src.getDefaultAgent());
@@ -280,6 +328,11 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.chatCompletionWithSession(request, sessionKey);
     }
 
+    public PromptResult chatCompletionWithSession(PromptRequest request, String sessionKey,
+                                                  HttpCallCancellation cancellation) {
+        return httpClient.chatCompletionWithSession(request, sessionKey, cancellation);
+    }
+
     public PromptResult chatCompletionWithSession(String text, String sessionKey) {
         return httpClient.chatCompletionWithSession(PromptRequest.ofText(text), sessionKey);
     }
@@ -308,20 +361,39 @@ public class OpenCodeClient implements AutoCloseable {
         return ChatMessageMapper.toChatResponse(result);
     }
 
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
+    public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey,
+                                                  HttpCallCancellation cancellation) {
+        PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
+        PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey, cancellation);
+        return ChatMessageMapper.toChatResponse(result);
+    }
+
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey) {
         return chatCompletionStream(request, sessionKey, null);
     }
 
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context) {
+        return chatCompletionStream(request, sessionKey, context, null);
+    }
+
+    /**
+     * 流式对话，并在订阅启动前绑定增量回调，避免丢失首批分片。
+     */
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
+                                                       OpenCodeRequestContext context,
+                                                       Consumer<String> deltaConsumer) {
         String sessionId = httpClient.ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 
-        ChatStreamingResponse stream = new ChatStreamingResponse();
+        StreamingChatResponse stream = new StreamingChatResponse().onDelta(deltaConsumer);
 
-        java.util.concurrent.BlockingQueue<Event> queue = sseClient.subscribeQueue(context);
+        OpenCodeSseClient.QueueSubscription subscription =
+                sseClient.subscribeQueueSubscription(context);
+        java.util.concurrent.BlockingQueue<Event> queue = subscription.getQueue();
 
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
+        try {
+            streamExecutor.submit(() -> {
             try {
                 long deadline = System.currentTimeMillis() + (config.getCli().getTimeout() * 1000L);
                 while (!stream.isDone() && System.currentTimeMillis() < deadline) {
@@ -372,10 +444,25 @@ public class OpenCodeClient implements AutoCloseable {
                 stream.fail(e);
             } catch (Exception e) {
                 stream.fail(e);
+            } finally {
+                subscription.close();
             }
-        });
+            });
+        } catch (RejectedExecutionException error) {
+            subscription.close();
+            stream.fail(new IllegalStateException("OpenCode stream executor is full", error));
+            return stream;
+        }
 
-        httpClient.promptAsync(sessionId, promptRequest, context);
+        try {
+            if (!httpClient.promptAsync(sessionId, promptRequest, context)) {
+                subscription.close();
+                stream.fail(new IllegalStateException("OpenCode async prompt was rejected"));
+            }
+        } catch (RuntimeException error) {
+            subscription.close();
+            stream.fail(error);
+        }
 
         return stream;
     }
@@ -438,8 +525,9 @@ public class OpenCodeClient implements AutoCloseable {
     // SSE 事件流
     // ============================================================
 
-    public OpenCodeSseClient sse() {
-        return sseClient;
+    /** 获取统一的 OpenCode 聊天场景客户端。 */
+    public OpenCodeChatClient chat() {
+        return chatClient;
     }
 
     public OpenCodeSseClient eventStream() {
@@ -888,6 +976,7 @@ public class OpenCodeClient implements AutoCloseable {
 
     @Override
     public void close() {
+        if (streamExecutor != null) streamExecutor.shutdownNow();
         if (httpClient != null) httpClient.close();
         if (sseClient != null) sseClient.close();
     }

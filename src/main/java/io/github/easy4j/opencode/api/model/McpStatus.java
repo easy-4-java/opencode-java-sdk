@@ -7,7 +7,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MCP Server 状态，对应 {@code GET /mcp} 响应元素。
+ * Represents the status of an MCP server, returned by {@code GET /mcp}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listMcpServers()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

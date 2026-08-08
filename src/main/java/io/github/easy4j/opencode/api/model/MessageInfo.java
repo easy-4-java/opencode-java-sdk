@@ -6,7 +6,11 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 单条 message 详情，对应 {@code GET /session/:id/message/:messageID}。
+ * Detailed information for a single message, returned by {@code GET /session/:id/message/:messageID}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getMessage(String, String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

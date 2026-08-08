@@ -13,7 +13,16 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
- * 本地 {@code opencode} CLI 子进程执行器。
+ * Executor for the local {@code opencode} CLI subprocess.
+ *
+ * <p>Uses Apache Commons Exec to launch the {@code opencode} binary with the configured
+ * arguments, capturing stdout and stderr. Supports timeout via {@link ExecuteWatchdog}
+ * and working directory configuration.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeCliConfig
+ * @see OpenCodeCliResult
  */
 public class OpenCodeCliExecutor {
 

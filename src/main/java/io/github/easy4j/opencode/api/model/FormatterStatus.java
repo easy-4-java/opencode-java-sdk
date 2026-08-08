@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 /**
- * Formatter 状态，对应 {@code GET /formatter} 响应元素。
+ * Represents the status of a code formatter, returned by {@code GET /formatter}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listFormatters()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

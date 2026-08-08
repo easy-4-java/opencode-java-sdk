@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * OpenCode 工作目录相关路径，对应 {@code GET /path}。
+ * Represents OpenCode working directory paths, returned by {@code GET /path}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getPath()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

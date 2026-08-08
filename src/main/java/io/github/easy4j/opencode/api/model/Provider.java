@@ -8,7 +8,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OpenCode Provider，对应 {@code GET /provider} 响应元素。
+ * Represents an OpenCode provider, returned by {@code GET /provider}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see ProviderList
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listProviders()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
