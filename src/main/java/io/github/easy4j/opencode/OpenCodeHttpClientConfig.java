@@ -56,6 +56,41 @@ public class OpenCodeHttpClientConfig {
     private int readTimeoutMillis = 300_000;
 
     /**
+     * 写入超时（毫秒）。
+     */
+    private int writeTimeoutMillis = 120_000;
+
+    /**
+     * 整个调用超时（毫秒）；0 表示不额外限制。
+     */
+    private int callTimeoutMillis;
+
+    /**
+     * 连接池最大空闲连接数。
+     */
+    private int maxIdleConnections = 32;
+
+    /**
+     * 空闲连接保活时间（毫秒）。
+     */
+    private long keepAliveDurationMillis = 300_000L;
+
+    /**
+     * 异步请求最大并发数。
+     */
+    private int maxRequests = 128;
+
+    /**
+     * 单主机异步请求最大并发数。
+     */
+    private int maxRequestsPerHost = 128;
+
+    /**
+     * 遇到失效连接等传输故障时是否允许 OkHttp 自动恢复。
+     */
+    private boolean retryOnConnectionFailure = true;
+
+    /**
      * 是否校验 HTTPS 证书；为 false 时关闭校验（仅建议开发环境）。
      */
     private boolean verifySsl = true;
