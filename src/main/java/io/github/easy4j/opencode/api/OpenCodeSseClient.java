@@ -25,8 +25,16 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * OpenCode Server SSE 客户端，消费 {@code GET /event} 事件流。
- * <p>基于 OkHttp {@link EventSources}，支持外部传入 {@link OkHttpClient}。</p>
+ * SSE client for the OpenCode Server event stream ({@code GET /event}).
+ *
+ * <p>Built on OkHttp {@link EventSources}; supports externally provided {@link OkHttpClient}
+ * instances. Provides both callback-based and blocking-queue-based subscription models,
+ * as well as session-scoped and type-filtered subscriptions.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClientConfig
+ * @see io.github.easy4j.opencode.api.event.EventHandler
  */
 @Slf4j
 public class OpenCodeSseClient implements AutoCloseable {

@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * Session todo 元素，对应 {@code GET /session/:id/todo} 响应元素。
+ * Represents a session todo item, returned by {@code GET /session/:id/todo}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getSessionTodo(String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

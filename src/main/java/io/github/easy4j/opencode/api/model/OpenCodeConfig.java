@@ -7,8 +7,15 @@ import lombok.Data;
 import java.util.Map;
 
 /**
- * OpenCode 全局/实例 Config，对应 {@code GET /config} 与 {@code GET /global/config}。
- * <p>字段全部以 {@link JsonProperty} 显式映射，便于 PATCH 反序列化。</p>
+ * Represents the OpenCode global or instance configuration, returned by
+ * {@code GET /config} and {@code GET /global/config}.
+ *
+ * <p>Fields are explicitly mapped via {@link JsonProperty} to support PATCH deserialization.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getConfig()
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getGlobalConfig()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -5,7 +5,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * OpenCode 工作目录 VCS 信息，对应 {@code GET /vcs} 响应。
+ * Represents VCS (Version Control System) information for the OpenCode working directory,
+ * returned by {@code GET /vcs}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getVcs()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

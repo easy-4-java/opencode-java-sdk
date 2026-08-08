@@ -5,7 +5,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * OpenCode Project，对应 {@code GET /project} / {@code GET /project/current} 响应。
+ * Represents an OpenCode project, returned by {@code GET /project} and {@code GET /project/current}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listProjects()
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getCurrentProject()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

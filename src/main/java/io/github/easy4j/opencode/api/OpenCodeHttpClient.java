@@ -22,9 +22,16 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * OpenCode Server HTTP 客户端，封装 REST API。
- * <p>基于 OkHttp，支持外部传入 {@link OkHttpClient}（复用别的插件实例）。</p>
+ * HTTP client for the OpenCode Server REST API.
  *
+ * <p>Built on OkHttp; supports externally provided {@link OkHttpClient} instances for
+ * connection pooling across plugins. All methods throw {@link io.github.easy4j.opencode.exception.OpenCodeHttpException}
+ * on HTTP errors.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClientConfig
+ * @see io.github.easy4j.opencode.exception.OpenCodeHttpException
  * @see <a href="https://opencode.ai/docs/server/">opencode server docs</a>
  */
 @Slf4j

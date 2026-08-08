@@ -23,29 +23,36 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * OpenCode 客户端门面：HTTP Server + SSE 事件流 + 本地 CLI。
- * <p>
- * 三条通信通道相互独立，按各自子配置的 {@code enabled} 决定是否创建：
- * </p>
+ * Facade client for OpenCode: HTTP Server + SSE event stream + local CLI.
+ *
+ * <p>Three communication channels are independent of each other and are created based on
+ * the {@code enabled} flag in their respective sub-configurations:</p>
  * <ul>
- *     <li>{@link OpenCodeHttpClientConfig#isEnabled()} = false → HTTP / SSE 子客户端为 {@code null}</li>
- *     <li>{@link OpenCodeCliConfig#isEnabled()} = false → CLI 子客户端为 {@code null}</li>
+ *     <li>{@link OpenCodeHttpClientConfig#isEnabled()} = false -> HTTP/SSE sub-clients are {@code null}</li>
+ *     <li>{@link OpenCodeCliConfig#isEnabled()} = false -> CLI sub-client is {@code null}</li>
  * </ul>
  *
- * <h3>构造器选择</h3>
- * <p>提供 8 个重载覆盖三类场景：</p>
+ * <h3>Constructor Selection</h3>
+ * <p>Eight overloads cover three scenarios:</p>
  * <ul>
- *     <li>仅 HTTP / 仅 CLI：传入单个子配置，禁用另一子系统</li>
- *     <li>HTTP + CLI：传入两个子配置，子系统都按各自 {@code enabled} 决定</li>
- *     <li>组合配置：传入 {@link OpenCodeClientConfig}，内部拆分为两个子配置</li>
+ *     <li>HTTP only / CLI only: pass a single sub-config; the other subsystem is disabled</li>
+ *     <li>HTTP + CLI: pass two sub-configs; each subsystem is enabled per its own {@code enabled} flag</li>
+ *     <li>Combined config: pass {@link OpenCodeClientConfig}; internally split into two sub-configs</li>
  * </ul>
- * <p>每种场景再分「自动 ObjectMapper/OkHttpClient」与「强制注入」两个变体。
- * 强制注入的版本对 {@code ObjectMapper}/{@code OkHttpClient} 进行 {@code requireNonNull} 校验。</p>
+ * <p>Each scenario has a variant with auto-created ObjectMapper/OkHttpClient and a variant with
+ * forced injection (the injected version applies {@code requireNonNull} validation).</p>
  *
- * <h3>启动自检</h3>
- * <p>主构造器在子系统初始化后按 {@code startupCheckEnabled} 与 {@code failFastOnUnavailable}
- * 执行健康探测（HTTP：{@code GET /global/health}；CLI：{@code opencode --version}）。
- * 探测失败但未开启 fail-fast 时仅 WARN，不中断构造。</p>
+ * <h3>Startup Health Checks</h3>
+ * <p>After subsystem initialization, the primary constructor runs health probes based on
+ * {@code startupCheckEnabled} and {@code failFastOnUnavailable} (HTTP: {@code GET /global/health};
+ * CLI: {@code opencode --version}). If the probe fails but fail-fast is not enabled, only a
+ * WARN log is emitted and construction continues.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClientConfig
+ * @see OpenCodeCliConfig
+ * @see OpenCodeClientConfig
  */
 @Slf4j
 public class OpenCodeClient implements AutoCloseable {

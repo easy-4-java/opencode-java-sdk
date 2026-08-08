@@ -5,8 +5,11 @@ import io.github.easy4j.opencode.api.model.Event;
 import java.util.Map;
 
 /**
- * opencode SSE 事件回调处理器，提供类型化默认方法。
- * <p>使用方式：</p>
+ * Typed callback handler for OpenCode SSE events.
+ *
+ * <p>All methods have no-op defaults; callers override only the callbacks they care about.</p>
+ *
+ * <p>Usage example:</p>
  * <pre>{@code
  * client.onSessionEvent(sessionId, new EventHandler() {
  *     public void onTextDelta(String delta, Event event) {
@@ -14,7 +17,10 @@ import java.util.Map;
  *     }
  * });
  * }</pre>
- * 所有方法默认 no-op；调用方按需覆写关心的回调。
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeSseClient
  */
 public interface EventHandler {
 

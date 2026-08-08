@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * 文件内容响应，对应 {@code GET /file/content}。
+ * Represents file content returned by {@code GET /file/content}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getFileContent(String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -4,14 +4,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
- * OpenCode 流式聊天响应（对齐 Hermes {@code ChatStreamingResponse}）。
- * <p>
- * 继承 {@link CompletableFuture<String>}，完成时携带累积的完整文本。
- * 通过 {@link #onDelta(Consumer)} 注册增量回调。
- * </p>
+ * Streaming chat response for OpenCode (aligned with Hermes {@code ChatStreamingResponse}).
+ *
+ * <p>Extends {@link CompletableFuture CompletableFuture&lt;String&gt;} which, upon completion,
+ * carries the accumulated full text. Register incremental callbacks via {@link #onDelta(Consumer)}.</p>
  *
  * @author [@Loong Wan](https://github.com/loong10k)
- * @since 2.7.x
+ * @since 3.0.0
+ * @see ChatRequest
+ * @see ChatResponse
  */
 public class ChatStreamingResponse extends CompletableFuture<String> {
 

@@ -5,7 +5,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * OpenCode Message。
+ * Represents an OpenCode message within a session.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see MessageInfo
+ * @see PromptResult
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -6,7 +6,12 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * 待回答的 Question，对应 {@code GET /question}、{@code /session/:id/question} 响应元素。
+ * Represents a pending question request, returned by {@code GET /question}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listQuestions()
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#replyQuestion(String, java.util.List)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

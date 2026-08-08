@@ -3,10 +3,16 @@ package io.github.easy4j.opencode;
 import lombok.Data;
 
 /**
- * OpenCode 本地 CLI 客户端配置。
- * <p>
- * 涵盖本地 {@code opencode} 可执行文件路径、超时、工作目录等 CLI 运行时设置。
- * </p>
+ * Configuration for the local OpenCode CLI subsystem.
+ *
+ * <p>Covers local {@code opencode} executable path, timeouts, working directory,
+ * and other CLI runtime settings. Can be mapped from Spring
+ * {@code @ConfigurationProperties}.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeClient
+ * @see OpenCodeClientConfig
  */
 @Data
 public class OpenCodeCliConfig {

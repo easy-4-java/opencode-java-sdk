@@ -5,7 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * 文件/目录节点，对应 {@code GET /file} 响应元素。
+ * Represents a file or directory node returned by {@code GET /file} or {@code GET /file/status}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listFiles(String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

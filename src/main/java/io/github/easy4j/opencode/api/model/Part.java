@@ -4,7 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 /**
- * OpenCode Message Part（消息的组成部分：text, tool_use, tool_result 等）。
+ * Represents a part of an OpenCode message (text, tool_use, tool_result, etc.).
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see PromptRequest
+ * @see PromptResult
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

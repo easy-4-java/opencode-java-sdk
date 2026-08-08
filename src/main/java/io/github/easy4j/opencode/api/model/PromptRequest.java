@@ -9,7 +9,12 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * opencode server 消息发送请求体（POST /session/:id/message）。
+ * Request body for sending a message to the OpenCode Server ({@code POST /session/:id/message}).
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see PromptResult
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#prompt(String, PromptRequest)
  */
 @Data
 @NoArgsConstructor
