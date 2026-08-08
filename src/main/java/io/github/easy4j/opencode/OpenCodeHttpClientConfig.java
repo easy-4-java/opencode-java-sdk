@@ -41,18 +41,6 @@ public class OpenCodeHttpClientConfig {
      */
     private String baseUrl = "http://localhost:4096";
 
-    /** @deprecated 使用 {@link #getBaseUrl()}。 */
-    @Deprecated
-    public String getServerUrl() {
-        return baseUrl;
-    }
-
-    /** @deprecated 使用 {@link #setBaseUrl(String)}。 */
-    @Deprecated
-    public void setServerUrl(String value) {
-        this.baseUrl = value;
-    }
-
     /**
      * HTTP Basic Auth 用户名（对应 {@code OPENCODE_SERVER_USERNAME}，默认 {@code opencode}）。
      */
@@ -124,18 +112,6 @@ public class OpenCodeHttpClientConfig {
      * 遇到失效连接等传输故障时是否允许 OkHttp 自动恢复。
      */
     private boolean retryOnConnectionFailure = true;
-
-    /** @deprecated 使用 {@link #getStreamEventQueueCapacity()}。 */
-    @Deprecated
-    public int getSseEventQueueCapacity() {
-        return streamEventQueueCapacity;
-    }
-
-    /** @deprecated 使用 {@link #setStreamEventQueueCapacity(int)}。 */
-    @Deprecated
-    public void setSseEventQueueCapacity(int value) {
-        this.streamEventQueueCapacity = value;
-    }
 
     /**
      * 是否校验 HTTPS 证书；为 false 时关闭校验（仅建议开发环境）。

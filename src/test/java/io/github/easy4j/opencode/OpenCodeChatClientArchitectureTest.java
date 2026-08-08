@@ -13,8 +13,8 @@ class OpenCodeChatClientArchitectureTest {
     void shouldExposeUnifiedConfigAndChatScenarioClient() {
         OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
         assertEquals(HttpResponseMode.BLOCKING, config.getMode());
-        config.setServerUrl("http://legacy-opencode");
-        assertEquals("http://legacy-opencode", config.getBaseUrl());
+        config.setBaseUrl("http://opencode");
+        assertEquals("http://opencode", config.getBaseUrl());
 
         try (OpenCodeChatClient client = new OpenCodeChatClient(config)) {
             assertEquals(OpenCodeHttpClient.class, client.getClass().getSuperclass());

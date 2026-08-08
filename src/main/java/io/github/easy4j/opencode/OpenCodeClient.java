@@ -10,6 +10,7 @@ import io.github.easy4j.opencode.api.OpenCodeHttpClient;
 import io.github.easy4j.opencode.api.OpenCodeChatClient;
 import io.github.easy4j.opencode.api.OpenCodeRequestContext;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
+import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 
@@ -191,7 +192,7 @@ public class OpenCodeClient implements AutoCloseable {
         if (httpConfig.isEnabled() && httpConfig.isStartupCheckEnabled()) {
             try {
                 httpClient.health();
-                log.info("OpenCode HTTP health check passed: {}", httpConfig.getServerUrl());
+                log.info("OpenCode HTTP health check passed: {}", httpConfig.getBaseUrl());
             } catch (Exception e) {
                 if (httpConfig.isFailFastOnUnavailable()) {
                     throw new IllegalStateException(
@@ -242,7 +243,7 @@ public class OpenCodeClient implements AutoCloseable {
         this.config.getHttp().setEnabled(src.isEnabled());
         this.config.getHttp().setStartupCheckEnabled(src.isStartupCheckEnabled());
         this.config.getHttp().setFailFastOnUnavailable(src.isFailFastOnUnavailable());
-        this.config.getHttp().setServerUrl(src.getServerUrl());
+        this.config.getHttp().setBaseUrl(src.getBaseUrl());
         this.config.getHttp().setUsername(src.getUsername());
         this.config.getHttp().setPassword(src.getPassword());
         this.config.getHttp().setConnectTimeoutMillis(src.getConnectTimeoutMillis());
@@ -367,11 +368,11 @@ public class OpenCodeClient implements AutoCloseable {
         return ChatMessageMapper.toChatResponse(result);
     }
 
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey) {
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey) {
         return chatCompletionStream(request, sessionKey, null);
     }
 
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context) {
         return chatCompletionStream(request, sessionKey, context, null);
     }
@@ -379,13 +380,13 @@ public class OpenCodeClient implements AutoCloseable {
     /**
      * 流式对话，并在订阅启动前绑定增量回调，避免丢失首批分片。
      */
-    public ChatStreamingResponse chatCompletionStream(ChatRequest request, String sessionKey,
+    public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context,
                                                        Consumer<String> deltaConsumer) {
         String sessionId = httpClient.ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
 
-        ChatStreamingResponse stream = new ChatStreamingResponse().onDelta(deltaConsumer);
+        StreamingChatResponse stream = new StreamingChatResponse().onDelta(deltaConsumer);
 
         OpenCodeSseClient.QueueSubscription subscription =
                 sseClient.subscribeQueueSubscription(context);
@@ -527,12 +528,6 @@ public class OpenCodeClient implements AutoCloseable {
     /** 获取统一的 OpenCode 聊天场景客户端。 */
     public OpenCodeChatClient chat() {
         return chatClient;
-    }
-
-    /** @deprecated 业务聊天请使用 {@link #chat()}，这里只保留原始事件订阅兼容入口。 */
-    @Deprecated
-    public OpenCodeSseClient sse() {
-        return sseClient;
     }
 
     public OpenCodeSseClient eventStream() {
