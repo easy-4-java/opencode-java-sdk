@@ -1,6 +1,8 @@
 package io.github.easy4j.opencode.api;
 
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
+import io.github.easy4j.opencode.HttpCallCancellation;
+import io.github.easy4j.opencode.exception.OpenCodeHttpException;
 import io.github.easy4j.opencode.api.model.PromptRequest;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -12,9 +14,11 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -60,6 +64,30 @@ class OpenCodeHttpClientTest {
             assertEquals("/data/opencode/workspaces/t1/p1",
                     request.getHeader("X-OpenCode-Directory"));
         }
+    }
+
+    @Test
+    void shouldCancelSessionLookupWithoutCreatingAnotherSession() {
+        AtomicBoolean cancelled = new AtomicBoolean();
+        HttpCallCancellation cancellation = new HttpCallCancellation() {
+            @Override
+            public AutoCloseable onCancel(Runnable callback) {
+                cancelled.set(true);
+                callback.run();
+                return () -> { };
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return cancelled.get();
+            }
+        };
+
+        assertThrows(OpenCodeHttpException.class,
+                () -> client.chatCompletionWithSession(PromptRequest.ofText("hello"),
+                        "stable-key", cancellation));
+        assertTrue(cancelled.get());
+        assertEquals(0, server.getRequestCount());
     }
 
     @Test

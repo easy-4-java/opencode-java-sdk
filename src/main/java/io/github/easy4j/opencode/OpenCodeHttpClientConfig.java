@@ -85,6 +85,21 @@ public class OpenCodeHttpClientConfig {
      */
     private int maxRequestsPerHost = 128;
 
+    /** 流式事件处理线程数。 */
+    private int streamCorePoolSize = 32;
+
+    /** 流式事件处理最大线程数。 */
+    private int streamMaxPoolSize = 32;
+
+    /** 流式事件处理有界队列容量。 */
+    private int streamQueueCapacity = 128;
+
+    /** 流式事件处理线程空闲保活时间（毫秒）。 */
+    private long streamKeepAliveMillis = 60_000L;
+
+    /** 单个 SSE 订阅的事件缓存上限。 */
+    private int sseEventQueueCapacity = 1_024;
+
     /**
      * 遇到失效连接等传输故障时是否允许 OkHttp 自动恢复。
      */
