@@ -6,7 +6,11 @@ import lombok.Data;
 import java.util.Map;
 
 /**
- * SSE 事件。
+ * Represents an SSE event received from the OpenCode Server event stream.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeSseClient
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

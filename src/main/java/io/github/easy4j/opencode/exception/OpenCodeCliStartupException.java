@@ -4,7 +4,11 @@ import io.github.easy4j.opencode.cli.availability.OpenCodeCliAvailabilityReport;
 import lombok.Getter;
 
 /**
- * 应用启动阶段 OpenCode CLI 不可用且配置为 fail-fast 时抛出。
+ * Thrown during application startup when the OpenCode CLI is unavailable and fail-fast is enabled.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.cli.availability.OpenCodeCliAvailabilityReport
  */
 @Getter
 public class OpenCodeCliStartupException extends RuntimeException {

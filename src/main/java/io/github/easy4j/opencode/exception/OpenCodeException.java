@@ -1,7 +1,12 @@
 package io.github.easy4j.opencode.exception;
 
 /**
- * OpenCode SDK 异常基类。
+ * Base exception for the OpenCode SDK.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpException
+ * @see OpenCodeCliStartupException
  */
 public class OpenCodeException extends RuntimeException {
 

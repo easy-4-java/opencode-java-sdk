@@ -10,14 +10,16 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * OpenAI Chat Completions API 响应（对齐 OpenClaw/Hermes）。
- * <p>
- * OpenCode 底层返回 {@code PromptResult}，SDK 内部自动转换：
- * {@code PromptResult.getTextContent()} → {@code choices[0].message.content}。
- * </p>
+ * OpenAI Chat Completions API response (aligned with OpenClaw/Hermes).
+ *
+ * <p>OpenCode internally returns {@code PromptResult}; the SDK automatically converts:
+ * {@code PromptResult.getTextContent()} is mapped to {@code choices[0].message.content}.</p>
  *
  * @author [@Loong Wan](https://github.com/loong10k)
- * @since 2.7.x
+ * @since 3.0.0
+ * @see ChatRequest
+ * @see ChatMessage
+ * @see io.github.easy4j.opencode.api.mapper.ChatMessageMapper
  */
 @Getter
 @Setter

@@ -8,7 +8,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Provider 认证方式，对应 {@code GET /provider/auth} 响应中的 {@code {providerID: [Method]}} 元素。
+ * Represents a provider authentication method, returned in {@code GET /provider/auth}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listProviderAuthMethods()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

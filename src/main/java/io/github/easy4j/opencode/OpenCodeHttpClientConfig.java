@@ -3,10 +3,15 @@ package io.github.easy4j.opencode;
 import lombok.Data;
 
 /**
- * OpenCode HTTP Server 客户端配置。
- * <p>
- * 涵盖 Server 根地址、Basic Auth、TLS、HTTP 超时及默认模型等网络相关设置。
- * </p>
+ * Configuration for the OpenCode HTTP Server client.
+ *
+ * <p>Covers server base URL, Basic Auth, TLS, HTTP timeouts, connection pool sizing,
+ * streaming thread pool, and default model/agent settings.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeHttpClient
+ * @see OpenCodeOkHttpClientFactory
  */
 @Data
 public class OpenCodeHttpClientConfig {

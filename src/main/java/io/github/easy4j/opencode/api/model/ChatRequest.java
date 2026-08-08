@@ -10,15 +10,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OpenAI Chat Completions API 请求体（对齐 OpenClaw/Hermes）。
- * <p>
- * OpenCode 底层使用会话模型的 {@code PromptRequest}，SDK 内部自动转换：
- * {@code messages} 最后一条 user 消息 → {@code parts} text；
- * {@code model "provider/model"} → {@code ModelRef}。
- * </p>
+ * OpenAI Chat Completions API request body (aligned with OpenClaw/Hermes).
+ *
+ * <p>OpenCode internally uses the session-based {@code PromptRequest}; the SDK automatically
+ * converts: the last {@code user} message in {@code messages} becomes a {@code parts} text
+ * entry; {@code model "provider/model"} is split into a {@link PromptRequest.ModelRef}.</p>
  *
  * @author [@Loong Wan](https://github.com/loong10k)
- * @since 2.7.x
+ * @since 3.0.0
+ * @see ChatMessage
+ * @see ChatResponse
+ * @see io.github.easy4j.opencode.api.mapper.ChatMessageMapper
  */
 @Getter
 @Setter

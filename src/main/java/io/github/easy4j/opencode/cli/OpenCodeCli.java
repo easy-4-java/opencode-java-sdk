@@ -9,8 +9,15 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 本地 {@code opencode} CLI 命令封装。
+ * Facade for the local {@code opencode} CLI commands.
  *
+ * <p>Wraps an {@link OpenCodeCliExecutor} and provides typed methods for each CLI sub-command
+ * (session, agent, models, providers, mcp, etc.).</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see OpenCodeCliExecutor
+ * @see OpenCodeCliResult
  * @see <a href="https://opencode.ai/docs/cli/">opencode CLI docs</a>
  */
 public class OpenCodeCli {

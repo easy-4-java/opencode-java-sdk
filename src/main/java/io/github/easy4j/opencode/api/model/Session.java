@@ -7,7 +7,12 @@ import lombok.Data;
 import java.util.Map;
 
 /**
- * OpenCode Session。
+ * Represents an OpenCode session.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#createSession(String)
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getSession(String)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

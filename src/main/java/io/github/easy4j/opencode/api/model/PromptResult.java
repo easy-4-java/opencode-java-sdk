@@ -6,10 +6,15 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * opencode server prompt 响应（POST /session/:id/message 的返回体）。
- * <p>
- * 结构为 {@code { info: Message, parts: Part[] }}。
- * </p>
+ * Response body from the OpenCode Server prompt endpoint ({@code POST /session/:id/message}).
+ *
+ * <p>Structure: {@code { info: Message, parts: Part[] }}. Use {@link #getTextContent()} to
+ * extract the concatenated text from all {@code type=text} parts.</p>
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see PromptRequest
+ * @see Part
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

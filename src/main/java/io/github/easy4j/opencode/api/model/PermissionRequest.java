@@ -7,7 +7,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 待审批的 Permission Request，对应 {@code GET /permission}、{@code /session/:id/permission} 响应元素。
+ * Represents a pending permission request, returned by {@code GET /permission}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listPermissions()
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#replyPermission(String, String, boolean)
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

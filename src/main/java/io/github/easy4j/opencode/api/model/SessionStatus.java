@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
 /**
- * 单个 session 状态，对应 {@code GET /session/status} 响应中的 {@code {sessionID: status}}。
+ * Represents the status of a single session, returned in {@code GET /session/status}.
+ *
+ * @author [@Loong Wan](https://github.com/loong10k)
+ * @since 3.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getSessionStatusMap()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
