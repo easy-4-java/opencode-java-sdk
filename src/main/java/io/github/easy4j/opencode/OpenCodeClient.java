@@ -60,6 +60,7 @@ public class OpenCodeClient implements AutoCloseable {
     private final OpenCodeChatClient chatClient;
     private final OpenCodeSseClient sseClient;
     private final OpenCodeCli cli;
+    private final OkHttpClient ownedHttpClient;
 
     // ============================================================
     // 构造器
@@ -114,13 +115,19 @@ public class OpenCodeClient implements AutoCloseable {
 
         // HTTP 子系统初始化
         if (httpEnabled) {
-            this.chatClient = new OpenCodeChatClient(httpConfig, objectMapper, httpClient);
+            OkHttpClient sharedHttpClient = Objects.nonNull(httpClient)
+                    ? httpClient : OpenCodeOkHttpClientFactory.create(httpConfig);
+            this.ownedHttpClient = Objects.isNull(httpClient) ? sharedHttpClient : null;
+            this.sseClient = new OpenCodeSseClient(
+                    httpConfig, objectMapper, sharedHttpClient);
+            this.chatClient = new OpenCodeChatClient(
+                    httpConfig, objectMapper, sharedHttpClient, sseClient);
             this.httpClient = this.chatClient;
-            this.sseClient = this.chatClient.events();
         } else {
             this.httpClient = null;
             this.chatClient = null;
             this.sseClient = null;
+            this.ownedHttpClient = null;
         }
 
         // CLI 子系统初始化
@@ -160,6 +167,7 @@ public class OpenCodeClient implements AutoCloseable {
         this.chatClient = httpClient instanceof OpenCodeChatClient ? (OpenCodeChatClient) httpClient : null;
         this.sseClient = sseClient;
         this.cli = cli;
+        this.ownedHttpClient = null;
     }
 
     // ============================================================
@@ -431,23 +439,9 @@ public class OpenCodeClient implements AutoCloseable {
         return chatClient;
     }
 
-    public OpenCodeSseClient eventStream() {
+    /** 获取统一的 OpenCode SSE 场景客户端。 */
+    public OpenCodeSseClient sse() {
         return sseClient;
-    }
-
-    public okhttp3.sse.EventSource onSessionEvent(String sessionId,
-            io.github.easy4j.opencode.api.event.EventHandler handler) {
-        return sseClient.subscribeHandler(sessionId, handler);
-    }
-
-    public okhttp3.sse.EventSource onEvent(
-            io.github.easy4j.opencode.api.event.EventHandler handler) {
-        return sseClient.subscribeHandler(null, handler);
-    }
-
-    public okhttp3.sse.EventSource onEventTypes(java.util.Set<String> types,
-            java.util.function.Consumer<Event> consumer) {
-        return sseClient.subscribeEventTypes(types, consumer);
     }
 
     // ============================================================
@@ -877,7 +871,8 @@ public class OpenCodeClient implements AutoCloseable {
 
     @Override
     public void close() {
-        if (httpClient != null) httpClient.close();
         if (sseClient != null) sseClient.close();
+        if (httpClient != null) httpClient.close();
+        OpenCodeOkHttpClientFactory.shutdown(ownedHttpClient);
     }
 }

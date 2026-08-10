@@ -6,12 +6,12 @@ import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
 import io.github.easy4j.opencode.api.mapper.ChatMessageMapper;
 import io.github.easy4j.opencode.api.model.ChatRequest;
 import io.github.easy4j.opencode.api.model.ChatResponse;
+import io.github.easy4j.opencode.api.sse.SseEvent;
+import io.github.easy4j.opencode.api.sse.SseSubscription;
 import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
-import io.github.easy4j.opencode.api.model.Event;
 import io.github.easy4j.opencode.api.model.PromptRequest;
 import io.github.easy4j.opencode.api.model.PromptResult;
 import okhttp3.OkHttpClient;
-import okhttp3.sse.EventSource;
 
 import java.util.Map;
 import java.util.Objects;
@@ -32,7 +32,8 @@ import java.util.function.Consumer;
 public class OpenCodeChatClient extends OpenCodeHttpClient {
 
     private final OpenCodeHttpClientConfig config;
-    private final OpenCodeSseClient eventClient;
+    private final OpenCodeSseClient sseClient;
+    private final boolean ownsSseClient;
     private final ScheduledExecutorService timeoutScheduler;
 
     public OpenCodeChatClient(OpenCodeHttpClientConfig config) {
@@ -43,7 +44,17 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
                               OkHttpClient httpClient) {
         super(config, objectMapper, httpClient);
         this.config = Objects.requireNonNull(config, "config");
-        this.eventClient = new OpenCodeSseClient(config, objectMapper, getOkHttpClient());
+        this.sseClient = new OpenCodeSseClient(config, getObjectMapper(), getOkHttpClient());
+        this.ownsSseClient = true;
+        this.timeoutScheduler = createTimeoutScheduler();
+    }
+
+    public OpenCodeChatClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper,
+                              OkHttpClient httpClient, OpenCodeSseClient sseClient) {
+        super(config, objectMapper, httpClient);
+        this.config = Objects.requireNonNull(config, "config");
+        this.sseClient = Objects.requireNonNull(sseClient, "sseClient");
+        this.ownsSseClient = false;
         this.timeoutScheduler = createTimeoutScheduler();
     }
 
@@ -105,7 +116,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
                 stream.fail(sessionError);
                 return;
             }
-            EventSource source = eventClient.subscribeSession(sessionId,
+            SseSubscription subscription = sseClient.subscribeSessionEvents(sessionId,
                     event -> handleEvent(sessionId, event, stream), context);
             ScheduledFuture<?> timeout = timeoutScheduler.schedule(() -> {
                 if (!stream.isDone()) {
@@ -114,7 +125,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
             }, Math.max(1L, config.getReadTimeoutMillis()), TimeUnit.MILLISECONDS);
             Runnable close = () -> {
                 timeout.cancel(false);
-                source.cancel();
+                subscription.cancel();
             };
             stream.onCancel(close);
             stream.whenComplete((value, error) -> close.run());
@@ -129,7 +140,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
         return stream;
     }
 
-    private void handleEvent(String sessionId, Event event, StreamingChatResponse stream) {
+    private void handleEvent(String sessionId, SseEvent event, StreamingChatResponse stream) {
         if (Objects.isNull(event) || !matchesSession(event, sessionId) || stream.isDone()) {
             return;
         }
@@ -152,12 +163,12 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
         }
     }
 
-    private boolean matchesSession(Event event, String sessionId) {
+    private boolean matchesSession(SseEvent event, String sessionId) {
         return Objects.nonNull(event.getProperties())
                 && Objects.equals(sessionId, Objects.toString(event.getProperties().get("sessionID"), null));
     }
 
-    private String extractDeltaText(Event event) {
+    private String extractDeltaText(SseEvent event) {
         if (Objects.isNull(event.getProperties())) {
             return null;
         }
@@ -171,15 +182,12 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
         return Objects.toString(event.getProperties().get("delta"), null);
     }
 
-    /** 原始事件客户端，仅供非聊天事件等高级场景使用。 */
-    public OpenCodeSseClient events() {
-        return eventClient;
-    }
-
     @Override
     public void close() {
         timeoutScheduler.shutdownNow();
-        eventClient.close();
+        if (ownsSseClient) {
+            sseClient.close();
+        }
         super.close();
     }
 }

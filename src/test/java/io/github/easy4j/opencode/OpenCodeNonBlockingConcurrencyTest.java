@@ -4,9 +4,9 @@ import io.github.easy4j.opencode.api.OpenCodeChatClient;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
 import io.github.easy4j.opencode.api.model.ChatMessage;
 import io.github.easy4j.opencode.api.model.ChatRequest;
+import io.github.easy4j.opencode.api.sse.SseSubscription;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.sse.EventSource;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -60,16 +60,15 @@ class OpenCodeNonBlockingConcurrencyTest {
             OpenCodeHttpClientConfig config = config(server);
             CountDownLatch events = new CountDownLatch(CONCURRENCY);
 
-            try (OpenCodeChatClient chat = new OpenCodeChatClient(config)) {
-                OpenCodeSseClient sse = chat.events();
-                List<EventSource> subscriptions = new ArrayList<>(CONCURRENCY);
+            try (OpenCodeSseClient sse = new OpenCodeSseClient(config)) {
+                List<SseSubscription> subscriptions = new ArrayList<>(CONCURRENCY);
                 for (int index = 0; index < CONCURRENCY; index++) {
-                    subscriptions.add(sse.subscribe(event -> events.countDown()));
+                    subscriptions.add(sse.subscribeEvents(event -> events.countDown()));
                 }
                 assertTrue(events.await(30, TimeUnit.SECONDS));
                 assertEquals(CONCURRENCY, server.getRequestCount());
                 assertEquals(0L, countThreads("opencode-stream-consumer-"));
-                subscriptions.forEach(EventSource::cancel);
+                subscriptions.forEach(SseSubscription::cancel);
             }
         }
     }
