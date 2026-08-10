@@ -20,7 +20,7 @@ import java.util.List;
 public class PromptResult {
 
     /**
-     * OpenCode 协议字段 {@code info}；Java 类型为 {@code Message}。
+     * 本次生成结果对应的消息元数据。
      */
     private Message info;
     /**

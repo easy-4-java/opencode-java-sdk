@@ -27,7 +27,7 @@ public class LspStatus {
     private String name;
 
     /**
-     * OpenCode 协议字段 {@code root}；Java 类型为 {@code String}。
+     * 语言服务器绑定的项目根目录。
      */
     private String root;
 

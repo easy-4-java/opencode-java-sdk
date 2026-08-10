@@ -25,7 +25,7 @@ public class Skill {
     private String description;
 
     /**
-     * OpenCode 协议字段 {@code location}；Java 类型为 {@code String}。
+     * 技能定义文件或目录的位置。
      */
     private String location;
 

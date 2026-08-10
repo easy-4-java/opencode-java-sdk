@@ -27,7 +27,7 @@ public class OpenCodeCli {
     private static final Logger log = LoggerFactory.getLogger(OpenCodeCli.class);
 
     /**
-     * OpenCode 协议字段 {@code executor}；Java 类型为 {@code OpenCodeCliExecutor}。
+     * 负责启动 OpenCode 子进程、控制超时并收集输出的执行器。
      */
     private final OpenCodeCliExecutor executor;
 

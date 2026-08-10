@@ -21,7 +21,7 @@ public class FileDiff {
     private String path;
 
     /**
-     * OpenCode 协议字段 {@code oldPath}；Java 类型为 {@code String}。
+     * 文件重命名或移动前的旧路径；其他差异类型为空。
      */
     @JsonProperty("oldPath")
     private String oldPath;

@@ -17,7 +17,7 @@ import java.util.List;
 public class MessageInfo {
 
     /**
-     * OpenCode 协议字段 {@code info}；Java 类型为 {@code Message}。
+     * 目标消息的角色、时间和会话归属等元数据。
      */
     private Message info;
 

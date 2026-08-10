@@ -21,29 +21,29 @@ public class Symbol {
     private String name;
 
     /**
-     * OpenCode 协议字段 {@code kind}；Java 类型为 {@code String}。
+     * 语言服务器返回的符号类别，例如类、方法或字段。
      */
     private String kind;
 
     /**
-     * OpenCode 协议字段 {@code containerName}；Java 类型为 {@code String}。
+     * 包含该符号的类、命名空间或其他容器名称。
      */
     @JsonProperty("containerName")
     private String containerName;
 
     /**
-     * OpenCode 协议字段 {@code location}；Java 类型为 {@code String}。
+     * 符号所在文件及范围的兼容位置描述。
      */
     private String location;
 
     /**
-     * OpenCode 协议字段 {@code uri}；Java 类型为 {@code String}。
+     * 符号源文件的 URI。
      */
     @JsonProperty("uri")
     private String uri;
 
     /**
-     * OpenCode 协议字段 {@code range}；Java 类型为 {@code Object}。
+     * 语言服务器返回的起止行列范围对象。
      */
     @JsonProperty("range")
     private Object range;

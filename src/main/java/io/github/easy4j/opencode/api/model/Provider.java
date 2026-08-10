@@ -35,7 +35,7 @@ public class Provider {
     private String description;
 
     /**
-     * OpenCode 协议字段 {@code source}；Java 类型为 {@code String}。
+     * 提供方配置来源，例如内置、环境变量或用户配置。
      */
     private String source;
 
