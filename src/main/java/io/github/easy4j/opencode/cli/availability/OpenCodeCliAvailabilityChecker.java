@@ -11,13 +11,12 @@ import java.util.Optional;
 
 /**
  * Checks whether the local {@code opencode} CLI is installed and can execute {@code opencode --version}.
- *
  * <p>Resolves the configured executable path (absolute/relative or via {@code PATH}),
  * then runs a version probe with a short timeout. Returns an {@link OpenCodeCliAvailabilityReport}
  * with the detailed status.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeCliAvailabilityReport
  * @see OpenCodeCliAvailabilityStatus
  */
@@ -26,8 +25,8 @@ public class OpenCodeCliAvailabilityChecker {
     /**
      * 使用与运行时一致的配置探测 CLI。
      *
-     * @param config CLI 配置，不得为 null
-     * @return 探测报告
+     * @param config 客户端配置；不得为 {@code null}
+     * @return OpenCode SDK 返回的CLI 可用性报告对象
      */
     public OpenCodeCliAvailabilityReport check(OpenCodeCliConfig config) {
         Objects.requireNonNull(config, "config");

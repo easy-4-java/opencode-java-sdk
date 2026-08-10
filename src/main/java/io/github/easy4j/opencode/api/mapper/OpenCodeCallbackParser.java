@@ -13,12 +13,10 @@ import java.util.regex.Pattern;
 
 /**
  * Parses callback JSON from OpenCode AI text responses.
- *
  * <p>OpenCode does not have a native webhook/callback mechanism. This parser attempts
  * to extract JSON blocks from the AI's text response, following the format conventions
  * defined by cloud-agents prompt templates (e.g., the callback_url output format
  * specified in SKILL.md).</p>
- *
  * <p>The parser tries three strategies in order:</p>
  * <ol>
  *     <li>Extract JSON from {@code ```json ... ```} fenced code blocks</li>
@@ -27,12 +25,18 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see io.github.easy4j.opencode.api.model.PromptResult
  */
 public class OpenCodeCallbackParser {
 
+    /**
+     * 当前组件使用的 SLF4J 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(OpenCodeCallbackParser.class);
+    /**
+     * OpenCode 协议字段 {@code MAPPER}；Java 类型为 {@code ObjectMapper}。
+     */
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -51,8 +55,8 @@ public class OpenCodeCallbackParser {
     /**
      * 从 PromptResult 中提取文本内容并解析为 Map。
      *
-     * @param result prompt 响应
-     * @return 解析后的 JSON Map，无法解析则返回 null
+     * @param result OpenCode Prompt 执行结果
+     * @return OpenCode Server 返回的键值映射；无数据时为空映射
      */
     public Map<String, Object> parseFromPromptResult(PromptResult result) {
         if (result == null || result.getParts() == null) {
@@ -68,15 +72,15 @@ public class OpenCodeCallbackParser {
     /**
      * 从纯文本中尝试提取并解析 JSON。
      *
-     * @param text AI 响应文本
-     * @return 解析后的 JSON Map，无法解析则返回 null
+     * @param text 发送给模型的文本内容
+     * @return OpenCode Server 返回的键值映射；无数据时为空映射
      */
     public Map<String, Object> parseFromText(String text) {
         if (text == null || text.isEmpty()) {
             return null;
         }
 
-        // 尝试从 ```json ... ``` 代码块中提取
+        // 优先解析模型明确标记的 JSON 代码块，避免正文中的花括号被误识别为回调参数。
         Matcher matcher = JSON_BLOCK_PATTERN.matcher(text);
         if (matcher.find()) {
             String json = matcher.group(1);
@@ -87,13 +91,13 @@ public class OpenCodeCallbackParser {
             }
         }
 
-        // 尝试直接解析整个文本为 JSON
+        // 其次接受整个响应就是 JSON 的简洁格式。
         try {
             return MAPPER.readValue(text.trim(), new TypeReference<Map<String, Object>>() {});
         } catch (Exception ignored) {
         }
 
-        // 尝试提取裸 JSON 对象
+        // 最后才扫描裸 JSON，并要求存在业务识别字段，降低普通示例代码造成的误报。
         Matcher bareMatcher = BARE_JSON_PATTERN.matcher(text);
         while (bareMatcher.find()) {
             String json = bareMatcher.group(1);

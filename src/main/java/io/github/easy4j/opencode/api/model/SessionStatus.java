@@ -7,15 +7,20 @@ import lombok.Data;
  * Represents the status of a single session, returned in {@code GET /session/status}.
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getSessionStatusMap()
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SessionStatus {
 
-    /** "idle" / "running" / "retry" / "compacting" */
+    /**
+     * "idle" / "running" / "retry" / "compacting"
+     */
     private String type;
 
+    /**
+     * OpenCode 协议字段 {@code message}；Java 类型为 {@code String}。
+     */
     private String message;
 }

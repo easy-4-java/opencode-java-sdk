@@ -4,19 +4,20 @@ import lombok.Data;
 
 /**
  * Configuration for the OpenCode HTTP Server client.
- *
  * <p>Covers server base URL, Basic Auth, TLS, HTTP timeouts, connection pool sizing,
  * streaming thread pool, and default model/agent settings.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
- * @see OpenCodeHttpClient
+ * @since 1.0.0
+ * @see io.github.easy4j.opencode.api.OpenCodeHttpClient
  * @see OpenCodeOkHttpClientFactory
  */
 @Data
 public class OpenCodeHttpClientConfig {
 
-    /** 对话响应模式，默认保持兼容的完整响应模式。 */
+    /**
+     * 对话响应模式，默认保持兼容的完整响应模式。
+     */
     private HttpResponseMode mode = HttpResponseMode.BLOCKING;
 
     /**
@@ -93,19 +94,29 @@ public class OpenCodeHttpClientConfig {
      */
     private int maxRequestsPerHost = 128;
 
-    /** 流式事件处理线程数。 */
+    /**
+     * 流式事件处理线程数。
+     */
     private int streamCorePoolSize = 32;
 
-    /** 流式事件处理最大线程数。 */
+    /**
+     * 流式事件处理最大线程数。
+     */
     private int streamMaxPoolSize = 32;
 
-    /** 流式事件处理有界队列容量。 */
+    /**
+     * 流式事件处理有界队列容量。
+     */
     private int streamQueueCapacity = 128;
 
-    /** 流式事件处理线程空闲保活时间（毫秒）。 */
+    /**
+     * 流式事件处理线程空闲保活时间（毫秒）。
+     */
     private long streamKeepAliveMillis = 60_000L;
 
-    /** 单个流式订阅的事件缓存上限。 */
+    /**
+     * 单个流式订阅的事件缓存上限。
+     */
     private int streamEventQueueCapacity = 1_024;
 
     /**
@@ -119,7 +130,9 @@ public class OpenCodeHttpClientConfig {
      */
     private boolean detailedLoggingEnabled = false;
 
-    /** 详细日志中请求体、响应体的最大字符数。 */
+    /**
+     * 详细日志中请求体、响应体的最大字符数。
+     */
     private int maxLoggedBodyLength = 2_000;
 
     /**
@@ -142,7 +155,7 @@ public class OpenCodeHttpClientConfig {
     /**
      * 解析用于 HTTP Basic Auth 的密码。
      *
-     * @return password 非空则用之，否则空字符串
+     * @return 服务端或 CLI 返回的文本值；无内容时可能为空字符串
      */
     public String resolvePassword() {
         return password != null ? password : "";

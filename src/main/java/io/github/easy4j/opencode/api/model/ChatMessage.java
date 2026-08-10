@@ -9,7 +9,7 @@ import lombok.Setter;
  * OpenAI Chat Completions API message object (aligned with OpenClaw/Hermes).
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see ChatRequest
  * @see ChatResponse
  */
@@ -19,28 +19,53 @@ import lombok.Setter;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChatMessage {
 
-    /** 消息角色：system / user / assistant / tool。 */
+    /**
+     * 消息角色：system / user / assistant / tool。
+     */
     private String role;
 
-    /** 消息文本内容。 */
+    /**
+     * 消息文本内容。
+     */
     private String content;
 
+    /**
+     * 创建 chat message 实例，并按传入依赖确定资源所有权。
+     *
+     * @param role 消息角色，例如 user、assistant 或 system
+     * @param content 消息文本内容
+     */
     public ChatMessage(String role, String content) {
         this.role = role;
         this.content = content;
     }
 
-    /** 快捷构造 user 消息。 */
+    /**
+     * 快捷构造 user 消息。
+     *
+     * @param content 消息文本内容
+     * @return OpenCode SDK 返回的聊天消息对象
+     */
     public static ChatMessage user(String content) {
         return new ChatMessage("user", content);
     }
 
-    /** 快捷构造 system 消息。 */
+    /**
+     * 快捷构造 system 消息。
+     *
+     * @param content 消息文本内容
+     * @return OpenCode SDK 返回的聊天消息对象
+     */
     public static ChatMessage system(String content) {
         return new ChatMessage("system", content);
     }
 
-    /** 快捷构造 assistant 消息。 */
+    /**
+     * 快捷构造 assistant 消息。
+     *
+     * @param content 消息文本内容
+     * @return OpenCode SDK 返回的聊天消息对象
+     */
     public static ChatMessage assistant(String content) {
         return new ChatMessage("assistant", content);
     }

@@ -4,32 +4,48 @@ package io.github.easy4j.opencode.cli.availability;
  * Enumeration of possible outcomes from an OpenCode CLI availability probe.
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeCliAvailabilityReport
  */
 public enum OpenCodeCliAvailabilityStatus {
 
-    /** {@code opencode --version} 探测成功。 */
+    /**
+     * available枚举值。
+     */
     AVAILABLE,
 
-    /** 未配置可执行文件。 */
+    /**
+     * executable not configured枚举值。
+     */
     EXECUTABLE_NOT_CONFIGURED,
 
-    /** 路径不存在或 PATH 中找不到。 */
+    /**
+     * executable not found枚举值。
+     */
     EXECUTABLE_NOT_FOUND,
 
-    /** 存在但不可执行。 */
+    /**
+     * executable not executable枚举值。
+     */
     EXECUTABLE_NOT_EXECUTABLE,
 
-    /** 进程无法启动。 */
+    /**
+     * spawn failed枚举值。
+     */
     SPAWN_FAILED,
 
-    /** 非零退出。 */
+    /**
+     * non zero exit枚举值。
+     */
     NON_ZERO_EXIT,
 
-    /** 探测超时。 */
+    /**
+     * timeout枚举值。
+     */
     TIMEOUT,
 
-    /** 其它失败。 */
+    /**
+     * failed枚举值。
+     */
     FAILED
 }

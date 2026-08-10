@@ -11,13 +11,12 @@ import java.util.Map;
 
 /**
  * OpenAI Chat Completions API request body (aligned with OpenClaw/Hermes).
- *
  * <p>OpenCode internally uses the session-based {@code PromptRequest}; the SDK automatically
  * converts: the last {@code user} message in {@code messages} becomes a {@code parts} text
  * entry; {@code model "provider/model"} is split into a {@link PromptRequest.ModelRef}.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see ChatMessage
  * @see ChatResponse
  * @see io.github.easy4j.opencode.api.mapper.ChatMessageMapper
@@ -28,44 +27,75 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChatRequest {
 
-    /** 模型标识，格式 {@code provider/model}（如 {@code anthropic/claude-sonnet-4-5}）。 */
+    /**
+     * 模型标识，格式 {@code provider/model}（如 {@code anthropic/claude-sonnet-4-5}）。
+     */
     private String model;
 
-    /** 消息数组（OpenAI 标准格式）。 */
+    /**
+     * 消息数组（OpenAI 标准格式）。
+     */
     private List<ChatMessage> messages;
 
-    /** 是否启用 SSE 流式响应。 */
+    /**
+     * 是否启用 SSE 流式响应。
+     */
     private Boolean stream;
 
-    /** 流式选项。 */
+    /**
+     * 流式选项。
+     */
     private Map<String, Object> streamOptions;
 
-    /** 指定 opencode agent 名称。 */
+    /**
+     * 指定 opencode agent 名称。
+     */
     private String agent;
 
-    /** 系统 prompt 附加内容。 */
+    /**
+     * 系统 prompt 附加内容。
+     */
     private String system;
 
-    /** 最大 token 数。 */
+    /**
+     * 最大 token 数。
+     */
     private Integer maxTokens;
 
-    /** 采样温度（0-2）。 */
+    /**
+     * 采样温度（0-2）。
+     */
     private Double temperature;
 
-    /** nucleus 采样参数（0-1）。 */
+    /**
+     * nucleus 采样参数（0-1）。
+     */
     private Double topP;
 
-    /** 用户标识。 */
+    /**
+     * 用户标识。
+     */
     private String user;
 
-    /** 快捷构造：单条 user 消息。 */
+    /**
+     * 快捷构造：单条 user 消息。
+     *
+     * @param content 消息文本内容
+     * @return OpenCode SDK 返回的聊天请求对象
+     */
     public static ChatRequest ofUser(String content) {
         ChatRequest req = new ChatRequest();
         req.setMessages(Collections.singletonList(ChatMessage.user(content)));
         return req;
     }
 
-    /** 快捷构造：单条 user 消息 + 模型。 */
+    /**
+     * 快捷构造：单条 user 消息 + 模型。
+     *
+     * @param content 消息文本内容
+     * @param model 模型标识，通常采用 provider/model 格式；为空时使用默认模型
+     * @return OpenCode SDK 返回的聊天请求对象
+     */
     public static ChatRequest ofUser(String content, String model) {
         ChatRequest req = ofUser(content);
         req.setModel(model);

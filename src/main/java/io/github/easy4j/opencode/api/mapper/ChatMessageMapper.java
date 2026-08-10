@@ -14,7 +14,7 @@ import java.util.UUID;
  * {@link ChatRequest}/{@link ChatResponse}（OpenAI 标准）与 {@link PromptRequest}/{@link PromptResult}（OpenCode 会话模型）互转。
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 2.7.x
+ * @since 1.0.0
  */
 public final class ChatMessageMapper {
 
@@ -27,6 +27,9 @@ public final class ChatMessageMapper {
      * 取最后一条 user 消息的 content 作为 text part；model "provider/model" 拆分为 ModelRef；
      * agent / system 直传。
      * </p>
+     *
+     * @param chatRequest OpenAI 风格的聊天请求
+     * @return OpenCode SDK 返回的Prompt 请求对象
      */
     public static PromptRequest toPromptRequest(ChatRequest chatRequest) {
         if (chatRequest == null) {
@@ -60,6 +63,9 @@ public final class ChatMessageMapper {
     /**
      * PromptResult → ChatResponse。
      * <p>getTextContent() → choices[0].message.content。</p>
+     *
+     * @param result OpenCode Prompt 执行结果
+     * @return OpenCode SDK 返回的聊天响应对象
      */
     public static ChatResponse toChatResponse(PromptResult result) {
         if (result == null) {

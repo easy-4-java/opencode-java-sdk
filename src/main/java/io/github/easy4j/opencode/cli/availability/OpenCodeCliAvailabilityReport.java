@@ -8,7 +8,7 @@ import lombok.Getter;
  * Report produced by the CLI availability probe during startup or readiness checks.
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeCliAvailabilityChecker
  * @see OpenCodeCliAvailabilityStatus
  */
@@ -16,15 +16,35 @@ import lombok.Getter;
 @Builder
 public class OpenCodeCliAvailabilityReport {
 
+    /**
+     * 资源当前状态，具体枚举值由 OpenCode Server 定义。
+     */
     private final OpenCodeCliAvailabilityStatus status;
+    /**
+     * OpenCode 协议字段 {@code available}；Java 类型为 {@code boolean}。
+     */
     private final boolean available;
+    /**
+     * OpenCode 协议字段 {@code configuredExecutable}；Java 类型为 {@code String}。
+     */
     private final String configuredExecutable;
+    /**
+     * OpenCode 协议字段 {@code resolvedExecutablePath}；Java 类型为 {@code String}。
+     */
     private final String resolvedExecutablePath;
+    /**
+     * OpenCode 协议字段 {@code message}；Java 类型为 {@code String}。
+     */
     private final String message;
+    /**
+     * OpenCode 协议字段 {@code probeResult}；Java 类型为 {@code OpenCodeCliResult}。
+     */
     private final OpenCodeCliResult probeResult;
 
     /**
-     * @return 是否可安全调用本地 {@code opencode}
+     * 根据探测状态判断本地 OpenCode CLI 是否可以执行命令。
+     *
+     * @return 满足条件返回 {@code true}，否则返回 {@code false}
      */
     public boolean isAvailable() {
         return available;
@@ -33,7 +53,7 @@ public class OpenCodeCliAvailabilityReport {
     /**
      * 构造面向日志/异常的诊断文本。
      *
-     * @return 说明字符串
+     * @return 服务端或 CLI 返回的文本值；无内容时可能为空字符串
      */
     public String toDiagnosticMessage() {
         StringBuilder sb = new StringBuilder();

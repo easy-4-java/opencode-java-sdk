@@ -10,28 +10,40 @@ import java.util.List;
 
 /**
  * Facade for the local {@code opencode} CLI commands.
- *
  * <p>Wraps an {@link OpenCodeCliExecutor} and provides typed methods for each CLI sub-command
  * (session, agent, models, providers, mcp, etc.).</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeCliExecutor
  * @see OpenCodeCliResult
  * @see <a href="https://opencode.ai/docs/cli/">opencode CLI docs</a>
  */
 public class OpenCodeCli {
 
+    /**
+     * 当前组件使用的 SLF4J 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(OpenCodeCli.class);
 
+    /**
+     * OpenCode 协议字段 {@code executor}；Java 类型为 {@code OpenCodeCliExecutor}。
+     */
     private final OpenCodeCliExecutor executor;
 
+    /**
+     * 创建 open code cli 实例，并按传入依赖确定资源所有权。
+     *
+     * @param executor 负责启动子进程并收集输出的 CLI 执行器
+     */
     public OpenCodeCli(OpenCodeCliExecutor executor) {
         this.executor = executor;
     }
 
     /**
      * 获取 CLI 执行器（用于自定义命令）。
+     *
+     * @return OpenCode SDK 返回的CLI 执行器对象
      */
     public OpenCodeCliExecutor executor() {
         return executor;
@@ -43,6 +55,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode --version}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult version() {
         return executor.execute("--version");
@@ -50,6 +64,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode --help}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult help() {
         return executor.execute("--help");
@@ -62,6 +78,9 @@ public class OpenCodeCli {
     /**
      * {@code opencode run <message>}
      * <p>非交互模式执行 prompt，返回 AI 响应。</p>
+     *
+     * @param message 传递给 OpenCode CLI 的提示文本
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult run(String message) {
         return executor.execute("run", message);
@@ -69,6 +88,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode run --model <model> <message>}
+     *
+     * @param message 传递给 OpenCode CLI 的提示文本
+     * @param model 模型标识，通常采用 provider/model 格式；为空时使用默认模型
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult run(String message, String model) {
         return executor.execute("run", "--model", model, message);
@@ -76,6 +99,11 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode run --agent <agent> --model <model> <message>}
+     *
+     * @param message 传递给 OpenCode CLI 的提示文本
+     * @param agent 执行请求的智能体名称；为空时使用服务端默认智能体
+     * @param model 模型标识，通常采用 provider/model 格式；为空时使用默认模型
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult run(String message, String agent, String model) {
         return executor.execute("run", "--agent", agent, "--model", model, message);
@@ -84,6 +112,9 @@ public class OpenCodeCli {
     /**
      * {@code opencode run --format json <message>}
      * <p>返回 JSON 格式的原始事件流。</p>
+     *
+     * @param message 传递给 OpenCode CLI 的提示文本
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult runJson(String message) {
         return executor.execute("run", "--format", "json", message);
@@ -91,6 +122,11 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode run --format json --session <sessionId> --message <message>}
+     *
+     * @param message 传递给 OpenCode CLI 的提示文本
+     * @param sessionId OpenCode 会话 ID；不得为空
+     * @param model 模型标识，通常采用 provider/model 格式；为空时使用默认模型
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult runJson(String message, String sessionId, String model) {
         List<String> args = new ArrayList<>();
@@ -109,6 +145,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode session list --format json}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult sessionList() {
         return executor.execute("session", "list", "--format", "json");
@@ -116,6 +154,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode session list --max-count <n> --format json}
+     *
+     * @param maxCount 最大返回会话数量
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult sessionList(int maxCount) {
         return executor.execute("session", "list", "--max-count", String.valueOf(maxCount),
@@ -124,6 +165,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode session delete <sessionId>}
+     *
+     * @param sessionId OpenCode 会话 ID；不得为空
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult sessionDelete(String sessionId) {
         return executor.execute("session", "delete", sessionId);
@@ -135,6 +179,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode agent list}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult agentList() {
         return executor.execute("agent", "list");
@@ -142,6 +188,13 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode agent create --path ... --description ... --mode ... --tools ...}
+     *
+     * @param path 文件或工作目录路径
+     * @param description 资源的可读说明；为空时由 OpenCode 使用默认描述
+     * @param mode 智能体运行模式或 CLI 行为模式
+     * @param permissions 智能体创建时使用的权限配置文本
+     * @param model 模型标识，通常采用 provider/model 格式；为空时使用默认模型
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult agentCreate(String path, String description, String mode,
                                          String permissions, String model) {
@@ -176,6 +229,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode models}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult models() {
         return executor.execute("models");
@@ -183,6 +238,11 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode models <provider> [--verbose] [--refresh]}
+     *
+     * @param provider 模型提供方 ID；为空时不限制提供方
+     * @param verbose 是否输出模型的详细元数据
+     * @param refresh 是否在列出模型前强制刷新提供方元数据
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult models(String provider, boolean verbose, boolean refresh) {
         List<String> args = new ArrayList<>();
@@ -201,6 +261,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode providers list}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult providersList() {
         return executor.execute("providers", "list");
@@ -208,6 +270,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode providers login [--provider ... --method ...]}
+     *
+     * @param provider 模型提供方 ID；为空时不限制提供方
+     * @param method 认证或升级方式
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult providersLogin(String provider, String method) {
         List<String> args = new ArrayList<>();
@@ -225,6 +291,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode providers logout [provider]}
+     *
+     * @param provider 模型提供方 ID；为空时不限制提供方
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult providersLogout(String provider) {
         if (provider == null) {
@@ -235,6 +304,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode auth list}（与 providers list 等价）
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult authList() {
         return executor.execute("auth", "list");
@@ -242,6 +313,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode auth login [--provider ... --method ...]}
+     *
+     * @param provider 模型提供方 ID；为空时不限制提供方
+     * @param method 认证或升级方式
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult authLogin(String provider, String method) {
         List<String> args = new ArrayList<>();
@@ -259,6 +334,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode auth logout [provider]}
+     *
+     * @param provider 模型提供方 ID；为空时不限制提供方
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult authLogout(String provider) {
         if (provider == null) {
@@ -273,6 +351,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode mcp list}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult mcpList() {
         return executor.execute("mcp", "list");
@@ -280,6 +360,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode mcp add <name> ...} 远程 MCP server（url 形式）。
+     *
+     * @param name 资源名称
+     * @param url 远程服务或控制台 URL
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult mcpAdd(String name, String url) {
         return executor.execute("mcp", "add", name, "--url", url);
@@ -288,6 +372,10 @@ public class OpenCodeCli {
     /**
      * {@code opencode mcp add <name>} 后接本地命令（exec 形式）。
      * <p>命令经 {@code --} 透传给 opencode，例如 {@code opencode mcp add foo -- npx server}</p>
+     *
+     * @param name 资源名称
+     * @param localCmd 追加到命令行的可变参数；每个元素作为独立参数传递
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult mcpAddLocal(String name, String... localCmd) {
         List<String> args = new ArrayList<>();
@@ -299,6 +387,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode mcp logout [name]}
+     *
+     * @param name 资源名称
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult mcpLogout(String name) {
         if (name == null) {
@@ -309,6 +400,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode mcp auth [name]}
+     *
+     * @param name 资源名称
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult mcpAuth(String name) {
         if (name == null) {
@@ -319,6 +413,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode mcp debug <name>}
+     *
+     * @param name 资源名称
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult mcpDebug(String name) {
         return executor.execute("mcp", "debug", name);
@@ -330,6 +427,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode upgrade}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult upgrade() {
         return executor.execute("upgrade");
@@ -337,6 +436,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode upgrade <target> [--method ...]}
+     *
+     * @param target 升级目标版本；为空时由 CLI 选择最新版本
+     * @param method 认证或升级方式
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult upgrade(String target, String method) {
         List<String> args = new ArrayList<>();
@@ -353,6 +456,12 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode uninstall [--keep-config] [--keep-data] [--dry-run] [--force]}
+     *
+     * @param keepConfig 卸载时是否保留本地配置
+     * @param keepData 卸载时是否保留会话和缓存数据
+     * @param dryRun 是否仅预览操作而不实际修改本地安装
+     * @param force 是否强制执行操作
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult uninstall(boolean keepConfig, boolean keepData,
                                        boolean dryRun, boolean force) {
@@ -379,6 +488,12 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode stats [--days ... --tools ... --models ... --project ...]}
+     *
+     * @param days 统计覆盖的最近天数；为 {@code null} 时使用 CLI 默认范围
+     * @param tools 统计结果中最多展示的工具数量；为 {@code null} 时使用 CLI 默认值
+     * @param models 统计结果中最多展示的模型数量；为 {@code null} 时使用 CLI 默认值
+     * @param project 统计限定的项目名称；为空时统计全部项目
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult stats(Integer days, Integer tools, Integer models, String project) {
         List<String> args = new ArrayList<>();
@@ -404,6 +519,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode export [sessionID] [--sanitize]}
+     *
+     * @param sessionId OpenCode 会话 ID；不得为空
+     * @param sanitize 是否在导出结果中移除敏感信息
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult export(String sessionId, boolean sanitize) {
         List<String> args = new ArrayList<>();
@@ -419,6 +538,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode import <file>}
+     *
+     * @param fileOrUrl 待导入的本地文件路径或远程 URL
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult importSession(String fileOrUrl) {
         return executor.execute("import", fileOrUrl);
@@ -426,6 +548,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode db [query] [--format json|tsv]}
+     *
+     * @param query 搜索或数据库查询表达式
+     * @param format 输出格式名称；为空时使用 CLI 默认格式
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult db(String query, String format) {
         List<String> args = new ArrayList<>();
@@ -442,6 +568,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode db path}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult dbPath() {
         return executor.execute("db", "path");
@@ -449,6 +577,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode debug config}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult debugConfig() {
         return executor.execute("debug", "config");
@@ -456,6 +586,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode debug paths}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult debugPaths() {
         return executor.execute("debug", "paths");
@@ -463,6 +595,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode debug info}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult debugInfo() {
         return executor.execute("debug", "info");
@@ -470,6 +604,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode debug scrap}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult debugScrap() {
         return executor.execute("debug", "scrap");
@@ -477,6 +613,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode debug skill}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult debugSkill() {
         return executor.execute("debug", "skill");
@@ -484,6 +622,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode debug startup}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult debugStartup() {
         return executor.execute("debug", "startup");
@@ -495,6 +635,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode serve [--port N --hostname H]}
+     *
+     * @param port 监听端口；为 {@code null} 时使用 CLI 默认值
+     * @param hostname 监听地址；为空时使用 CLI 默认值
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult serve(Integer port, String hostname) {
         List<String> args = new ArrayList<>();
@@ -512,6 +656,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode web [--port N --hostname H]}
+     *
+     * @param port 监听端口；为 {@code null} 时使用 CLI 默认值
+     * @param hostname 监听地址；为空时使用 CLI 默认值
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult web(Integer port, String hostname) {
         List<String> args = new ArrayList<>();
@@ -529,6 +677,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode acp [--cwd ...]}
+     *
+     * @param cwd CLI 进程使用的当前工作目录；为空时继承配置
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult acp(String cwd) {
         List<String> args = new ArrayList<>();
@@ -542,6 +693,13 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode attach <url> [--dir ... --session ... --username ... --password ...]}
+     *
+     * @param url 远程服务或控制台 URL
+     * @param dir CLI 命令作用目录；为空时使用配置工作目录
+     * @param sessionId OpenCode 会话 ID；不得为空
+     * @param username OpenCode Server Basic Auth 用户名
+     * @param password OpenCode Server Basic Auth 密码；日志中不得明文输出
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult attach(String url, String dir, String sessionId,
                                     String username, String password) {
@@ -569,6 +727,8 @@ public class OpenCodeCli {
     /**
      * {@code opencode generate}
      * <p>打印带 JS 代码示例注入的 OpenAPI spec。</p>
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult generate() {
         return executor.execute("generate");
@@ -580,6 +740,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode github install}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult githubInstall() {
         return executor.execute("github", "install");
@@ -587,6 +749,10 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode github run [--event ... --token ...]}
+     *
+     * @param event 触发当前回调的完整 SSE 事件
+     * @param token GitHub 访问令牌；为空时由 CLI 自行解析
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult githubRun(String event, String token) {
         List<String> args = new ArrayList<>();
@@ -604,6 +770,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode pr <number>}
+     *
+     * @param number GitHub Pull Request 编号
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult pr(int number) {
         return executor.execute("pr", String.valueOf(number));
@@ -615,6 +784,11 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode plugin <module> [--global] [--force]}
+     *
+     * @param module 插件模块名称或安装来源
+     * @param global 是否在全局作用域安装插件
+     * @param force 是否强制执行操作
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult plugin(String module, boolean global, boolean force) {
         List<String> args = new ArrayList<>();
@@ -635,6 +809,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode console login [url]}
+     *
+     * @param url 远程服务或控制台 URL
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult consoleLogin(String url) {
         if (url == null) {
@@ -645,6 +822,9 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode console logout [email]}
+     *
+     * @param email 需要退出登录的控制台账号邮箱；为空时使用当前账号
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult consoleLogout(String email) {
         if (email == null) {
@@ -655,6 +835,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode console orgs}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult consoleOrgs() {
         return executor.execute("console", "orgs");
@@ -662,6 +844,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode console switch}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult consoleSwitch() {
         return executor.execute("console", "switch");
@@ -669,6 +853,8 @@ public class OpenCodeCli {
 
     /**
      * {@code opencode console open}
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult consoleOpen() {
         return executor.execute("console", "open");

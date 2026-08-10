@@ -4,13 +4,12 @@ import lombok.Data;
 
 /**
  * Configuration for the local OpenCode CLI subsystem.
- *
  * <p>Covers local {@code opencode} executable path, timeouts, working directory,
  * and other CLI runtime settings. Can be mapped from Spring
  * {@code @ConfigurationProperties}.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeClient
  * @see OpenCodeClientConfig
  */

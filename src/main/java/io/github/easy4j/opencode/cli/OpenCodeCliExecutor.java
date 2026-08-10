@@ -14,24 +14,31 @@ import java.util.Objects;
 
 /**
  * Executor for the local {@code opencode} CLI subprocess.
- *
  * <p>Uses Apache Commons Exec to launch the {@code opencode} binary with the configured
  * arguments, capturing stdout and stderr. Supports timeout via {@link ExecuteWatchdog}
  * and working directory configuration.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeCliConfig
  * @see OpenCodeCliResult
  */
 public class OpenCodeCliExecutor {
 
+    /**
+     * 当前组件使用的 SLF4J 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(OpenCodeCliExecutor.class);
 
+    /**
+     * 当前客户端使用的不可变配置引用。
+     */
     private final OpenCodeCliConfig config;
 
     /**
-     * @param config CLI 配置，不得为 null
+     * 创建 open code cli executor 实例，并按传入依赖确定资源所有权。
+     *
+     * @param config 客户端配置；不得为 {@code null}
      */
     public OpenCodeCliExecutor(OpenCodeCliConfig config) {
         this.config = Objects.requireNonNull(config, "config");
@@ -39,10 +46,14 @@ public class OpenCodeCliExecutor {
 
     /**
      * 同步执行 CLI 命令，返回执行结果。
+     *
+     * @param args 传递给 OpenCode CLI 的参数数组；每项独立转义
+     * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult execute(String... args) {
         CommandLine cmd = CommandLine.parse(config.getExecutable());
         for (String arg : args) {
+            // 每个业务参数作为独立命令行元素加入，避免空格或特殊字符被重新解释为多个参数。
             cmd.addArgument(arg);
         }
 
@@ -57,6 +68,7 @@ public class OpenCodeCliExecutor {
         }
 
         long timeoutMs = config.getTimeout() * 1000L;
+        // Watchdog 在超时后终止子进程；同步 CLI 边界与 OkHttp Dispatcher 相互独立。
         ExecuteWatchdog watchdog = new ExecuteWatchdog(timeoutMs);
         executor.setWatchdog(watchdog);
 
@@ -73,6 +85,8 @@ public class OpenCodeCliExecutor {
 
     /**
      * 探测 CLI 是否可用（执行 {@code opencode --version}）。
+     *
+     * @return 操作成功返回 {@code true}，否则返回 {@code false}
      */
     public boolean probe() {
         try {

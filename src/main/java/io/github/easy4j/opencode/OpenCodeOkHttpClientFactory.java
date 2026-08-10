@@ -12,12 +12,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Factory for creating {@link OkHttpClient} instances used by the OpenCode SDK in standalone mode.
- *
  * <p>When a Spring container already provides an external {@link OkHttpClient}, the injection
  * constructors should be used instead and this factory will not participate.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
- * @since 3.0.0
+ * @since 1.0.0
  * @see OpenCodeHttpClientConfig
  */
 public final class OpenCodeOkHttpClientFactory {
@@ -28,8 +27,8 @@ public final class OpenCodeOkHttpClientFactory {
     /**
      * 根据 OpenCode HTTP 配置创建客户端。
      *
-     * @param config HTTP 配置
-     * @return SDK 自主管理的 OkHttpClient
+     * @param config 客户端配置；不得为 {@code null}
+     * @return OpenCode SDK 返回的OkHttp 客户端对象
      */
     public static OkHttpClient create(OpenCodeHttpClientConfig config) {
         Objects.requireNonNull(config, "config");
