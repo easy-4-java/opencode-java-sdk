@@ -2,10 +2,11 @@ package io.github.easy4j.opencode.api;
 
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
 import io.github.easy4j.opencode.api.event.EventHandler;
-import io.github.easy4j.opencode.api.model.Event;
+import io.github.easy4j.opencode.api.sse.SseEvent;
+import io.github.easy4j.opencode.api.sse.SseQueueSubscription;
+import io.github.easy4j.opencode.api.sse.SseSubscription;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.sse.EventSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,13 +53,13 @@ class OpenCodeSseClientTest {
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody("data: {\"type\":\"test\",\"properties\":{\"key\":\"value\"}}\n\n"));
 
-        AtomicReference<Event> received = new AtomicReference<>();
-        EventSource source = sseClient.subscribe(event -> received.set(event));
+        AtomicReference<SseEvent> received = new AtomicReference<>();
+        SseSubscription subscription = sseClient.subscribeEvents(received::set);
 
         Thread.sleep(500);
         assertNotNull(received.get());
         assertEquals("test", received.get().getType());
-        source.cancel();
+        subscription.cancel();
     }
 
     @Test
@@ -68,8 +69,8 @@ class OpenCodeSseClientTest {
                 .setBody("data: {\"type\":\"test\",\"properties\":{}}\n\n"));
 
         OpenCodeRequestContext context = OpenCodeRequestContext.ofDirectory("/data/project");
-        AtomicReference<Event> received = new AtomicReference<>();
-        EventSource source = sseClient.subscribe(event -> received.set(event), context);
+        AtomicReference<SseEvent> received = new AtomicReference<>();
+        SseSubscription subscription = sseClient.subscribeEvents(received::set, context);
 
         Thread.sleep(500);
         assertNotNull(received.get());
@@ -77,19 +78,7 @@ class OpenCodeSseClientTest {
         var request = server.takeRequest(2, TimeUnit.SECONDS);
         assertNotNull(request);
         assertEquals("/data/project", request.getHeader("X-OpenCode-Directory"));
-        source.cancel();
-    }
-
-    @Test
-    void shouldSubscribeQueueAndReceiveEvents() throws InterruptedException {
-        server.enqueue(new MockResponse()
-                .setHeader("Content-Type", "text/event-stream")
-                .setBody("data: {\"type\":\"test\",\"properties\":{}}\n\n"));
-
-        BlockingQueue<Event> queue = sseClient.subscribeQueue();
-        Event event = queue.poll(3, TimeUnit.SECONDS);
-        assertNotNull(event);
-        assertEquals("test", event.getType());
+        subscription.cancel();
     }
 
     @Test
@@ -98,11 +87,11 @@ class OpenCodeSseClientTest {
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody("data: {\"type\":\"test\",\"properties\":{}}\n\n"));
 
-        OpenCodeSseClient.QueueSubscription sub = sseClient.subscribeQueueSubscription(null);
+        SseQueueSubscription sub = sseClient.subscribeEventsQueue(null);
         assertNotNull(sub);
         assertNotNull(sub.getQueue());
 
-        Event event = sub.getQueue().poll(3, TimeUnit.SECONDS);
+        SseEvent event = sub.getQueue().poll(3, TimeUnit.SECONDS);
         assertNotNull(event);
         sub.close();
     }
@@ -114,13 +103,13 @@ class OpenCodeSseClientTest {
                 .setBody("data: {\"type\":\"test\",\"properties\":{\"sessionID\":\"sess-1\"}}\n\n" +
                          "data: {\"type\":\"test\",\"properties\":{\"sessionID\":\"sess-2\"}}\n\n"));
 
-        AtomicReference<Event> received = new AtomicReference<>();
-        EventSource source = sseClient.subscribeSession("sess-1", event -> received.set(event));
+        AtomicReference<SseEvent> received = new AtomicReference<>();
+        SseSubscription subscription = sseClient.subscribeSessionEvents("sess-1", received::set);
 
         Thread.sleep(500);
         assertNotNull(received.get());
         assertEquals("sess-1", received.get().getProperties().get("sessionID"));
-        source.cancel();
+        subscription.cancel();
     }
 
     @Test
@@ -130,14 +119,14 @@ class OpenCodeSseClientTest {
                 .setBody("data: {\"type\":\"wanted\",\"properties\":{}}\n\n" +
                          "data: {\"type\":\"unwanted\",\"properties\":{}}\n\n"));
 
-        AtomicReference<Event> received = new AtomicReference<>();
-        EventSource source = sseClient.subscribeEventTypes(
-                Set.of("wanted"), event -> received.set(event));
+        AtomicReference<SseEvent> received = new AtomicReference<>();
+        SseSubscription subscription = sseClient.subscribeEventTypes(
+                Set.of("wanted"), received::set);
 
         Thread.sleep(500);
         assertNotNull(received.get());
         assertEquals("wanted", received.get().getType());
-        source.cancel();
+        subscription.cancel();
     }
 
     @Test
@@ -146,28 +135,28 @@ class OpenCodeSseClientTest {
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody("data: {\"type\":\"text.delta\",\"properties\":{\"sessionID\":\"sess-1\"}}\n\n"));
 
-        AtomicReference<Event> received = new AtomicReference<>();
+        AtomicReference<SseEvent> received = new AtomicReference<>();
         EventHandler handler = new EventHandler() {
             @Override
-            public void onEvent(Event event) {
+            public void onEvent(SseEvent event) {
                 received.set(event);
             }
         };
 
-        EventSource source = sseClient.subscribeHandler("sess-1", handler);
+        SseSubscription subscription = sseClient.subscribeSessionEvents("sess-1", handler);
         Thread.sleep(500);
         assertNotNull(received.get());
-        source.cancel();
+        subscription.cancel();
     }
 
     @Test
     void shouldRejectNullHandler() {
-        assertThrows(IllegalArgumentException.class,
-                () -> sseClient.subscribeHandler("sess-1", null));
+        assertThrows(NullPointerException.class,
+                () -> sseClient.subscribeSessionEvents("sess-1", (EventHandler) null));
     }
 
     @Test
-    void shouldStopAllEventSources() throws InterruptedException {
+    void shouldCloseAllSubscriptions() {
         server.enqueue(new MockResponse()
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody("data: {\"type\":\"test\",\"properties\":{}}\n\n"));
@@ -175,11 +164,12 @@ class OpenCodeSseClientTest {
                 .setHeader("Content-Type", "text/event-stream")
                 .setBody("data: {\"type\":\"test\",\"properties\":{}}\n\n"));
 
-        sseClient.subscribe(event -> {});
-        sseClient.subscribe(event -> {});
+        sseClient.subscribeEvents(event -> { });
+        sseClient.subscribeEvents(event -> { });
 
-        // Should not throw
-        sseClient.stop();
+        assertEquals(2, sseClient.activeSubscriptionCount());
+        sseClient.close();
+        assertEquals(0, sseClient.activeSubscriptionCount());
     }
 
     @Test
@@ -195,21 +185,21 @@ class OpenCodeSseClientTest {
                 .setBody("data: {\"type\":\"test\",\"properties\":{}}\n\n"));
 
         OpenCodeRequestContext context = OpenCodeRequestContext.ofDirectory("/data/proj");
-        AtomicReference<Event> received = new AtomicReference<>();
+        AtomicReference<SseEvent> received = new AtomicReference<>();
         EventHandler handler = new EventHandler() {
             @Override
-            public void onEvent(Event event) {
+            public void onEvent(SseEvent event) {
                 received.set(event);
             }
         };
 
-        EventSource source = sseClient.subscribeHandler(null, handler, context);
+        SseSubscription subscription = sseClient.subscribeSessionEvents(null, handler, context);
         Thread.sleep(500);
         assertNotNull(received.get());
 
         var request = server.takeRequest(2, TimeUnit.SECONDS);
         assertNotNull(request);
         assertEquals("/data/proj", request.getHeader("X-OpenCode-Directory"));
-        source.cancel();
+        subscription.cancel();
     }
 }

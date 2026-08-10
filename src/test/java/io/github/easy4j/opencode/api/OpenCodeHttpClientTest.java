@@ -100,7 +100,7 @@ class OpenCodeHttpClientTest {
         OpenCodeSseClient sseClient = new OpenCodeSseClient(
                 config, client.getObjectMapper(), client.getOkHttpClient());
         try {
-            sseClient.subscribe(event -> { },
+            sseClient.subscribeEvents(event -> { },
                     OpenCodeRequestContext.ofDirectory("/data/opencode/workspaces/t1/research-1"));
             RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
             assertNotNull(request);
