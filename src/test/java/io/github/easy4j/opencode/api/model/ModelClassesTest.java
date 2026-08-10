@@ -1,5 +1,7 @@
 package io.github.easy4j.opencode.api.model;
 
+import io.github.easy4j.opencode.api.sse.SseEvent;
+
 import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
 
 import org.junit.jupiter.api.Test;
@@ -231,12 +233,12 @@ class ModelClassesTest {
     }
 
     // ============================================================
-    // Event
+    // SseEvent
     // ============================================================
 
     @Test
     void shouldCreateEvent() {
-        Event event = new Event();
+        SseEvent event = new SseEvent();
         event.setType("session.idle");
         event.setProperties(Map.of("sessionID", "sess-1"));
         assertEquals("session.idle", event.getType());

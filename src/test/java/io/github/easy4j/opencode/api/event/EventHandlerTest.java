@@ -1,6 +1,6 @@
 package io.github.easy4j.opencode.api.event;
 
-import io.github.easy4j.opencode.api.model.Event;
+import io.github.easy4j.opencode.api.sse.SseEvent;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -15,7 +15,7 @@ class EventHandlerTest {
     @Test
     void shouldNotThrowOnDefaultMethods() {
         EventHandler handler = new EventHandler() {};
-        Event event = new Event();
+        SseEvent event = new SseEvent();
         event.setType("test");
         event.setProperties(Map.of());
 

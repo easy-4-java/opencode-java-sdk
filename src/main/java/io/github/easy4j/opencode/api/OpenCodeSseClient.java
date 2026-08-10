@@ -3,7 +3,11 @@ package io.github.easy4j.opencode.api;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
-import io.github.easy4j.opencode.api.model.Event;
+import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
+import io.github.easy4j.opencode.api.event.EventHandler;
+import io.github.easy4j.opencode.api.sse.SseEvent;
+import io.github.easy4j.opencode.api.sse.SseQueueSubscription;
+import io.github.easy4j.opencode.api.sse.SseSubscription;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Credentials;
 import okhttp3.OkHttpClient;
@@ -12,29 +16,18 @@ import okhttp3.Response;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 import java.util.Set;
-import java.util.Collections;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
- * SSE client for the OpenCode Server event stream ({@code GET /event}).
- *
- * <p>Built on OkHttp {@link EventSources}; supports externally provided {@link OkHttpClient}
- * instances. Provides both callback-based and blocking-queue-based subscription models,
- * as well as session-scoped and type-filtered subscriptions.</p>
- *
- * @author [@Loong Wan](https://github.com/loong10k)
- * @since 3.0.0
- * @see OpenCodeHttpClientConfig
- * @see io.github.easy4j.opencode.api.event.EventHandler
+ * OpenCode Server SSE 客户端，负责事件订阅、过滤、取消和资源回收。
  */
 @Slf4j
 public class OpenCodeSseClient implements AutoCloseable {
@@ -42,106 +35,181 @@ public class OpenCodeSseClient implements AutoCloseable {
     private final OpenCodeHttpClientConfig config;
     private final ObjectMapper mapper;
     private final OkHttpClient httpClient;
-    private final Set<EventSource> eventSources = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final boolean ownsHttpClient;
+    private final Set<SseSubscription> activeSubscriptions = ConcurrentHashMap.newKeySet();
 
-    public OpenCodeSseClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
-        this.config = config;
-        this.mapper = Objects.isNull(objectMapper) ? new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false) : objectMapper;
-        this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
-        log.debug("OpenCode SSE client initialized: baseUrl={}, connectTimeoutMs={}, eventQueueCapacity={}, detailedLoggingEnabled={}",
-                config.getBaseUrl(), config.getConnectTimeoutMillis(), config.getStreamEventQueueCapacity(),
-                config.isDetailedLoggingEnabled());
+    /** 使用 SDK 自建 OkHttpClient 创建 SSE 客户端。 */
+    public OpenCodeSseClient(OpenCodeHttpClientConfig config) {
+        this(config, new ObjectMapper(), null);
     }
 
-    private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
-        // 兜底创建（SSE 需要无读超时）
-        OkHttpClient.Builder builder = new OkHttpClient.Builder()
-                .connectTimeout(config.getConnectTimeoutMillis(), TimeUnit.MILLISECONDS)
-                .readTimeout(0, TimeUnit.MILLISECONDS);
-        if (!config.isVerifySsl()) {
-            builder.hostnameVerifier((hostname, session) -> true);
-        }
-        return builder.build();
+    /** 使用共享 ObjectMapper 和 OkHttpClient 创建 SSE 客户端。 */
+    public OpenCodeSseClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper,
+                             OkHttpClient httpClient) {
+        this.config = Objects.requireNonNull(config, "config");
+        this.mapper = Objects.isNull(objectMapper) ? new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false) : objectMapper;
+        this.ownsHttpClient = Objects.isNull(httpClient);
+        OkHttpClient baseClient = ownsHttpClient
+                ? OpenCodeOkHttpClientFactory.create(config) : httpClient;
+        this.httpClient = baseClient.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build();
+        log.debug("OpenCode SSE client initialized: baseUrl={}, maxRequests={}, "
+                        + "maxRequestsPerHost={}, eventQueueCapacity={}, reconnectPolicy=none, "
+                        + "detailedLoggingEnabled={}",
+                config.getBaseUrl(), config.getMaxRequests(), config.getMaxRequestsPerHost(),
+                config.getStreamEventQueueCapacity(), config.isDetailedLoggingEnabled());
     }
 
-    /**
-     * 订阅 SSE 事件流，事件通过 consumer 回调。
-     * <p>OkHttp {@link EventSources} 内部用守护线程处理，无需自建 ExecutorService。</p>
-     *
-     * @param consumer 事件消费者
-     * @return EventSource（可用于 cancel）
-     */
-    public EventSource subscribe(Consumer<Event> consumer) {
-        return subscribe(consumer, null);
+    /** 订阅全局事件流。 */
+    public SseSubscription subscribeEvents(Consumer<SseEvent> consumer) {
+        return subscribeEvents(consumer, null);
     }
 
-    public EventSource subscribe(Consumer<Event> consumer, OpenCodeRequestContext context) {
+    /** 使用请求上下文订阅全局事件流。 */
+    public SseSubscription subscribeEvents(Consumer<SseEvent> consumer,
+                                           OpenCodeRequestContext context) {
+        Objects.requireNonNull(consumer, "consumer");
         Request request = buildRequest(context);
+        AtomicReference<EventSource> eventSourceRef = new AtomicReference<>();
+        AtomicReference<SseSubscription> subscriptionRef = new AtomicReference<>();
+        SseSubscription subscription = new SseSubscription(() -> {
+            EventSource eventSource = eventSourceRef.get();
+            if (Objects.nonNull(eventSource)) {
+                eventSource.cancel();
+            }
+            SseSubscription current = subscriptionRef.get();
+            if (Objects.nonNull(current)) {
+                activeSubscriptions.remove(current);
+            }
+        });
+        subscriptionRef.set(subscription);
+        activeSubscriptions.add(subscription);
         long startedAt = System.nanoTime();
-        log.debug("SSE subscription started: url={}", request.url());
         EventSourceListener listener = new EventSourceListener() {
             @Override
-            public void onOpen(EventSource es, Response response) {
-                log.info("SSE connected: url={}, status={}, elapsedMs={}", request.url(), response.code(),
-                        (System.nanoTime() - startedAt) / 1_000_000L);
+            public void onOpen(EventSource eventSource, Response response) {
+                log.info("OpenCode SSE connected: streamType=events, url={}, status={}, elapsedMs={}",
+                        request.url(), response.code(), elapsedMillis(startedAt));
             }
 
             @Override
-            public void onEvent(EventSource es, String id, String type, String data) {
-                if (data != null && !data.isEmpty()) {
-                    try {
-                        Event event = mapper.readValue(data, Event.class);
-                        consumer.accept(event);
-                    } catch (Exception e) {
-                        if (config.isDetailedLoggingEnabled()) {
-                            log.debug("Failed to parse SSE event: {}", data, e);
-                        } else {
-                            log.debug("Failed to parse SSE event: dataLength={}, error={}", data.length(), e.getMessage());
-                        }
+            public void onEvent(EventSource eventSource, String id, String type, String data) {
+                SseSubscription subscription = subscriptionRef.get();
+                if (Objects.isNull(subscription) || !subscription.isActive()
+                        || Objects.isNull(data) || data.isEmpty()) {
+                    return;
+                }
+                try {
+                    consumer.accept(mapper.readValue(data, SseEvent.class));
+                } catch (Exception error) {
+                    if (config.isDetailedLoggingEnabled()) {
+                        log.debug("Failed to parse OpenCode SSE event: data={}", data, error);
+                    } else {
+                        log.debug("Failed to parse OpenCode SSE event: dataLength={}, error={}",
+                                data.length(), error.getMessage());
                     }
                 }
             }
 
             @Override
-            public void onClosed(EventSource es) {
-                eventSources.remove(es);
-                log.info("SSE connection closed");
+            public void onClosed(EventSource eventSource) {
+                closeSubscription(subscriptionRef);
+                log.info("OpenCode SSE closed: streamType=events, url={}", request.url());
             }
 
             @Override
-            public void onFailure(EventSource es, Throwable t, Response response) {
-                eventSources.remove(es);
-                if (response != null) {
-                    log.warn("SSE connection failed, status={}", response.code(), t);
-                } else {
-                    log.warn("SSE connection failed", t);
-                }
+            public void onFailure(EventSource eventSource, Throwable error, Response response) {
+                closeSubscription(subscriptionRef);
+                log.warn("OpenCode SSE failed: streamType=events, url={}, status={}, error={}",
+                        request.url(), Objects.nonNull(response) ? response.code() : -1,
+                        Objects.nonNull(error) ? error.getMessage() : "unknown");
             }
         };
-        EventSource eventSource = EventSources.createFactory(httpClient).newEventSource(request, listener);
-        eventSources.add(eventSource);
-        return eventSource;
+        EventSource eventSource = EventSources.createFactory(httpClient)
+                .newEventSource(request, listener);
+        eventSourceRef.set(eventSource);
+        if (!subscription.isActive()) {
+            eventSource.cancel();
+        }
+        return subscription;
     }
 
-    /**
-     * 阻塞式订阅，返回一个 BlockingQueue，事件入队供外部消费。
-     */
-    public BlockingQueue<Event> subscribeQueue() {
-        return subscribeQueue(null);
-    }
-
-    public BlockingQueue<Event> subscribeQueue(OpenCodeRequestContext context) {
-        return subscribeQueueSubscription(context).getQueue();
-    }
-
-    public QueueSubscription subscribeQueueSubscription(OpenCodeRequestContext context) {
-        BlockingQueue<Event> queue = new ArrayBlockingQueue<>(
+    /** 创建带有界队列的全局事件订阅。 */
+    public SseQueueSubscription subscribeEventsQueue(OpenCodeRequestContext context) {
+        BlockingQueue<SseEvent> queue = new ArrayBlockingQueue<>(
                 Math.max(1, config.getStreamEventQueueCapacity()));
-        EventSource source = subscribe(event -> offerLatest(queue, event), context);
-        return new QueueSubscription(queue, source);
+        SseSubscription subscription = subscribeEvents(event -> offerLatest(queue, event), context);
+        return new SseQueueSubscription(queue, subscription);
     }
 
-    private void offerLatest(BlockingQueue<Event> queue, Event event) {
+    /** 订阅指定 session 的事件。 */
+    public SseSubscription subscribeSessionEvents(String sessionId,
+                                                  Consumer<SseEvent> consumer) {
+        return subscribeSessionEvents(sessionId, consumer, null);
+    }
+
+    /** 使用请求上下文订阅指定 session 的事件。 */
+    public SseSubscription subscribeSessionEvents(String sessionId,
+                                                  Consumer<SseEvent> consumer,
+                                                  OpenCodeRequestContext context) {
+        return subscribeEvents(filterBySession(sessionId, consumer), context);
+    }
+
+    /** 使用类型化处理器订阅指定 session 的事件。 */
+    public SseSubscription subscribeSessionEvents(String sessionId, EventHandler handler) {
+        return subscribeSessionEvents(sessionId, handler, null);
+    }
+
+    /** 使用请求上下文和类型化处理器订阅指定 session 的事件。 */
+    public SseSubscription subscribeSessionEvents(String sessionId, EventHandler handler,
+                                                  OpenCodeRequestContext context) {
+        Objects.requireNonNull(handler, "handler");
+        return subscribeEvents(filterBySession(sessionId, handler::onEvent), context);
+    }
+
+    /** 订阅指定类型集合中的事件。 */
+    public SseSubscription subscribeEventTypes(Set<String> types, Consumer<SseEvent> consumer) {
+        return subscribeEventTypes(types, consumer, null);
+    }
+
+    /** 使用请求上下文订阅指定类型集合中的事件。 */
+    public SseSubscription subscribeEventTypes(Set<String> types, Consumer<SseEvent> consumer,
+                                               OpenCodeRequestContext context) {
+        return subscribeEvents(filterByTypes(types, consumer), context);
+    }
+
+    /** 返回当前活动订阅数量。 */
+    public int activeSubscriptionCount() {
+        return activeSubscriptions.size();
+    }
+
+    private Consumer<SseEvent> filterBySession(String sessionId, Consumer<SseEvent> delegate) {
+        Objects.requireNonNull(delegate, "delegate");
+        if (Objects.isNull(sessionId)) {
+            return delegate;
+        }
+        return event -> {
+            if (Objects.nonNull(event) && Objects.nonNull(event.getProperties())
+                    && Objects.equals(sessionId, event.getProperties().get("sessionID"))) {
+                delegate.accept(event);
+            }
+        };
+    }
+
+    private Consumer<SseEvent> filterByTypes(Set<String> types, Consumer<SseEvent> delegate) {
+        Objects.requireNonNull(delegate, "delegate");
+        if (Objects.isNull(types) || types.isEmpty()) {
+            return delegate;
+        }
+        return event -> {
+            if (Objects.nonNull(event) && Objects.nonNull(event.getType())
+                    && types.contains(event.getType())) {
+                delegate.accept(event);
+            }
+        };
+    }
+
+    private void offerLatest(BlockingQueue<SseEvent> queue, SseEvent event) {
         if (!queue.offer(event)) {
             queue.poll();
             queue.offer(event);
@@ -149,129 +217,41 @@ public class OpenCodeSseClient implements AutoCloseable {
         }
     }
 
-    /**
-     * 订阅 SSE，仅消费指定 session 的事件。
-     *
-     * @param sessionId 目标 session ID（{@code null} 表示不过滤）
-     * @param consumer  事件消费者（已按 sessionID 过滤）
-     * @return EventSource
-     */
-    public EventSource subscribeSession(String sessionId, Consumer<Event> consumer) {
-        return subscribeSession(sessionId, consumer, null);
-    }
-
-    public EventSource subscribeSession(String sessionId, Consumer<Event> consumer,
-                                        OpenCodeRequestContext context) {
-        return subscribe(filterBySession(sessionId, consumer), context);
-    }
-
-    /**
-     * 订阅 SSE，仅消费指定事件类型集合中的事件。
-     *
-     * @param types     事件类型白名单（如 {@code "message.part.updated"}、{@code "session.idle"}）
-     * @param consumer  事件消费者
-     */
-    public EventSource subscribeEventTypes(Set<String> types, Consumer<Event> consumer) {
-        return subscribeEventTypes(types, consumer, null);
-    }
-
-    public EventSource subscribeEventTypes(Set<String> types, Consumer<Event> consumer,
-                                           OpenCodeRequestContext context) {
-        return subscribe(filterByTypes(types, consumer), context);
-    }
-
-    /**
-     * 订阅 SSE，使用 {@link io.github.easy4j.opencode.api.event.EventHandler} 类型化回调。
-     * 事件先按 sessionId 过滤（如果非 null），再分发到 handler 的对应方法。
-     */
-    public EventSource subscribeHandler(String sessionId,
-                                        io.github.easy4j.opencode.api.event.EventHandler handler) {
-        return subscribeHandler(sessionId, handler, null);
-    }
-
-    public EventSource subscribeHandler(String sessionId,
-                                        io.github.easy4j.opencode.api.event.EventHandler handler,
-                                        OpenCodeRequestContext context) {
-        if (handler == null) {
-            throw new IllegalArgumentException("handler must not be null");
-        }
-        return subscribe(filterBySession(sessionId, handler::onEvent), context);
-    }
-
-    private static Consumer<Event> filterBySession(String sessionId, Consumer<Event> delegate) {
-        if (sessionId == null) {
-            return delegate;
-        }
-        return event -> {
-            if (event == null || event.getProperties() == null) {
-                return;
-            }
-            Object sid = event.getProperties().get("sessionID");
-            if (sessionId.equals(sid)) {
-                delegate.accept(event);
-            }
-        };
-    }
-
-    private static Consumer<Event> filterByTypes(Set<String> types, Consumer<Event> delegate) {
-        if (types == null || types.isEmpty()) {
-            return delegate;
-        }
-        return event -> {
-            if (event != null && event.getType() != null && types.contains(event.getType())) {
-                delegate.accept(event);
-            }
-        };
-    }
-
     private Request buildRequest(OpenCodeRequestContext context) {
-        String url = config.getBaseUrl() + "/event";
-        Request.Builder builder = new Request.Builder().url(url)
+        Request.Builder builder = new Request.Builder().url(config.getBaseUrl() + "/event")
                 .header("Accept", "text/event-stream")
                 .header("Cache-Control", "no-cache");
         String password = config.resolvePassword();
         if (!password.isEmpty()) {
             builder.header("Authorization", Credentials.basic(config.getUsername(), password));
         }
-        if (Objects.nonNull(context) && context.getDirectory() != null
+        if (Objects.nonNull(context) && Objects.nonNull(context.getDirectory())
                 && !context.getDirectory().trim().isEmpty()) {
             builder.header("X-OpenCode-Directory", context.getDirectory());
         }
         return builder.build();
     }
 
-    /**
-     * 停止事件流订阅。
-     */
-    public void stop() {
-        for (EventSource eventSource : eventSources) {
-            eventSource.cancel();
+    private void closeSubscription(AtomicReference<SseSubscription> subscriptionRef) {
+        SseSubscription subscription = subscriptionRef.get();
+        if (Objects.nonNull(subscription)) {
+            subscription.close();
         }
-        eventSources.clear();
     }
 
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    /** 取消全部订阅并释放 SSE 客户端自有资源。 */
     @Override
     public void close() {
-        stop();
-    }
-
-    public static final class QueueSubscription implements AutoCloseable {
-
-        private final BlockingQueue<Event> queue;
-        private final EventSource eventSource;
-
-        private QueueSubscription(BlockingQueue<Event> queue, EventSource eventSource) {
-            this.queue = queue;
-            this.eventSource = eventSource;
+        for (SseSubscription subscription : activeSubscriptions) {
+            subscription.close();
         }
-
-        public BlockingQueue<Event> getQueue() {
-            return queue;
-        }
-
-        @Override
-        public void close() {
-            eventSource.cancel();
+        activeSubscriptions.clear();
+        if (ownsHttpClient) {
+            OpenCodeOkHttpClientFactory.shutdown(httpClient);
         }
     }
 }
