@@ -3,6 +3,10 @@ package io.github.easy4j.opencode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.easy4j.opencode.api.OpenCodeHttpClient;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
+import io.github.easy4j.opencode.api.model.Agent;
+import io.github.easy4j.opencode.api.model.HealthStatus;
+import io.github.easy4j.opencode.api.model.OpenCodeConfig;
+import io.github.easy4j.opencode.api.model.Session;
 import io.github.easy4j.opencode.cli.OpenCodeCli;
 import io.github.easy4j.opencode.cli.OpenCodeCliExecutor;
 import io.github.easy4j.opencode.cli.OpenCodeCliResult;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -131,7 +136,7 @@ class OpenCodeClientTest {
         OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
-        var health = client.health();
+        HealthStatus health = client.health();
         assertNotNull(health);
         assertTrue(health.getHealthy());
         client.close();
@@ -149,7 +154,7 @@ class OpenCodeClientTest {
         OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
-        var sessions = client.listSessions();
+        List<Session> sessions = client.listSessions();
         assertNotNull(sessions);
         assertEquals(1, sessions.size());
         client.close();
@@ -167,7 +172,7 @@ class OpenCodeClientTest {
         OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
-        var agents = client.listAgents();
+        List<Agent> agents = client.listAgents();
         assertNotNull(agents);
         assertEquals(1, agents.size());
         client.close();
@@ -185,7 +190,7 @@ class OpenCodeClientTest {
         OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
-        var codeConfig = client.getOpenCodeConfig();
+        OpenCodeConfig codeConfig = client.getOpenCodeConfig();
         assertNotNull(codeConfig);
         assertEquals("dark", codeConfig.getTheme());
         client.close();

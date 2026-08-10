@@ -60,13 +60,13 @@ class OpenCodeCliAvailabilityCheckerTest {
     @Test
     void shouldReturnEmptyForBlankExecutable() {
         Optional<String> resolved = OpenCodeCliAvailabilityChecker.resolveExecutablePath("  ");
-        assertTrue(resolved.isEmpty());
+        assertFalse(resolved.isPresent());
     }
 
     @Test
     void shouldReturnEmptyForNullExecutable() {
         Optional<String> resolved = OpenCodeCliAvailabilityChecker.resolveExecutablePath(null);
-        assertTrue(resolved.isEmpty());
+        assertFalse(resolved.isPresent());
     }
 
     @Test
@@ -82,6 +82,6 @@ class OpenCodeCliAvailabilityCheckerTest {
     @Test
     void shouldReturnEmptyForNonexistentAbsolutePath() {
         Optional<String> resolved = OpenCodeCliAvailabilityChecker.resolveExecutablePath("/nonexistent/binary");
-        assertTrue(resolved.isEmpty());
+        assertFalse(resolved.isPresent());
     }
 }

@@ -7,9 +7,9 @@ import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
+import static io.github.easy4j.opencode.Java8Collections.list;
+import static io.github.easy4j.opencode.Java8Collections.map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -83,7 +83,7 @@ class ModelClassesTest {
         req.setModel("anthropic/claude-sonnet-4-5");
         req.setMessages(Collections.singletonList(ChatMessage.user("hi")));
         req.setStream(true);
-        req.setStreamOptions(Map.of("include_usage", true));
+        req.setStreamOptions(map("include_usage", true));
         req.setAgent("coder");
         req.setSystem("system prompt");
         req.setMaxTokens(1024);
@@ -223,7 +223,7 @@ class ModelClassesTest {
         cmd.setName("/help");
         cmd.setDescription("Show help");
         cmd.setTemplate("help {{arg}}");
-        cmd.setArgs(List.of("arg"));
+        cmd.setArgs(list("arg"));
         cmd.setAgent("coder");
         assertEquals("/help", cmd.getName());
         assertEquals("Show help", cmd.getDescription());
@@ -240,7 +240,7 @@ class ModelClassesTest {
     void shouldCreateEvent() {
         SseEvent event = new SseEvent();
         event.setType("session.idle");
-        event.setProperties(Map.of("sessionID", "sess-1"));
+        event.setProperties(map("sessionID", "sess-1"));
         assertEquals("session.idle", event.getType());
         assertEquals("sess-1", event.getProperties().get("sessionID"));
     }
@@ -309,10 +309,10 @@ class ModelClassesTest {
     void shouldCreateFileSearchResult() {
         FileSearchResult result = new FileSearchResult();
         result.setPath("src/Main.java");
-        result.setLines(List.of("public class Main {}"));
+        result.setLines(list("public class Main {}"));
         result.setLineNumber(1);
         result.setAbsoluteOffset(0);
-        result.setSubmatches(List.of());
+        result.setSubmatches(list());
         assertEquals("src/Main.java", result.getPath());
         assertEquals(1, result.getLineNumber());
     }
@@ -355,7 +355,7 @@ class ModelClassesTest {
         lsp.setName("Eclipse JDT");
         lsp.setRoot("/project");
         lsp.setStatus("running");
-        lsp.setDiagnostics(List.of());
+        lsp.setDiagnostics(list());
         assertEquals("jdtls", lsp.getId());
         assertEquals("running", lsp.getStatus());
     }
@@ -369,8 +369,8 @@ class ModelClassesTest {
         McpStatus mcp = new McpStatus();
         mcp.setName("github");
         mcp.setStatus("connected");
-        mcp.setConfig(Map.of("url", "http://localhost"));
-        mcp.setTools(List.of("tool1"));
+        mcp.setConfig(map("url", "http://localhost"));
+        mcp.setTools(list("tool1"));
         assertEquals("github", mcp.getName());
         assertEquals("connected", mcp.getStatus());
         assertEquals(1, mcp.getTools().size());
@@ -403,7 +403,7 @@ class ModelClassesTest {
         Message msg = new Message();
         msg.setId("msg-1");
         info.setInfo(msg);
-        info.setParts(List.of());
+        info.setParts(list());
         assertEquals("msg-1", info.getInfo().getId());
         assertTrue(info.getParts().isEmpty());
     }
@@ -424,15 +424,15 @@ class ModelClassesTest {
         cfg.setUsername("user");
         cfg.setShare("public");
         cfg.setAutoshare(true);
-        cfg.setMode(Map.of("k", "v"));
-        cfg.setProvider_(Map.of("k", "v"));
-        cfg.setProviders(Map.of("k", "v"));
-        cfg.setAgent_(Map.of("k", "v"));
-        cfg.setAgents(Map.of("k", "v"));
-        cfg.setPermission(Map.of("k", "v"));
-        cfg.setTools(Map.of("k", "v"));
-        cfg.setExperimental(Map.of("k", "v"));
-        cfg.setExtra(Map.of("k", "v"));
+        cfg.setMode(map("k", "v"));
+        cfg.setProvider_(map("k", "v"));
+        cfg.setProviders(map("k", "v"));
+        cfg.setAgent_(map("k", "v"));
+        cfg.setAgents(map("k", "v"));
+        cfg.setPermission(map("k", "v"));
+        cfg.setTools(map("k", "v"));
+        cfg.setExperimental(map("k", "v"));
+        cfg.setExtra(map("k", "v"));
         assertEquals("dark", cfg.getTheme());
         assertEquals("anthropic/claude-sonnet-4-5", cfg.getModel());
         assertEquals("coder", cfg.getAgent());
@@ -498,8 +498,8 @@ class ModelClassesTest {
         pr.setSessionID("sess-1");
         pr.setPermission("bash");
         pr.setDescription("run ls");
-        pr.setMetadata(Map.of("command", "ls"));
-        pr.setPatterns(List.of("ls *"));
+        pr.setMetadata(map("command", "ls"));
+        pr.setPatterns(list("ls *"));
         assertEquals("perm-1", pr.getId());
         assertEquals("bash", pr.getPermission());
         assertEquals(1, pr.getPatterns().size());
@@ -518,7 +518,7 @@ class ModelClassesTest {
         project.setWorktree("/project");
         project.setVcsDir("/project/.git");
         project.setVcs("git");
-        project.setSandboxes(List.of("sandbox1"));
+        project.setSandboxes(list("sandbox1"));
         project.setCreatedAt("2025-01-01");
         assertEquals("proj-1", project.getId());
         assertEquals("my-project", project.getName());
@@ -550,7 +550,7 @@ class ModelClassesTest {
     @Test
     void shouldSetAllPromptRequestFields() {
         PromptRequest req = new PromptRequest();
-        req.setParts(List.of());
+        req.setParts(list());
         req.setModel(new PromptRequest.ModelRef("anthropic", "claude-sonnet-4-5"));
         req.setAgent("coder");
         req.setNoReply(true);
@@ -577,7 +577,7 @@ class ModelClassesTest {
         toolPart.setText("ignored");
 
         PromptResult result = new PromptResult();
-        result.setParts(List.of(textPart, textPart2, toolPart));
+        result.setParts(list(textPart, textPart2, toolPart));
         assertEquals("hello world", result.getTextContent());
     }
 
@@ -593,7 +593,7 @@ class ModelClassesTest {
         toolPart.setType("tool_use");
         toolPart.setText("data");
         PromptResult result = new PromptResult();
-        result.setParts(List.of(toolPart));
+        result.setParts(list(toolPart));
         assertEquals("", result.getTextContent());
     }
 
@@ -608,9 +608,9 @@ class ModelClassesTest {
         p.setName("Anthropic");
         p.setDescription("AI provider");
         p.setSource("builtin");
-        p.setAuthMethods(List.of());
-        p.setModels(Map.of());
-        p.setOptions(Map.of());
+        p.setAuthMethods(list());
+        p.setModels(map());
+        p.setOptions(map());
         assertEquals("anthropic", p.getId());
         assertEquals("Anthropic", p.getName());
     }
@@ -642,9 +642,9 @@ class ModelClassesTest {
         ProviderAuthMethod method = new ProviderAuthMethod();
         method.setLabel("API Key");
         method.setType("api-key");
-        method.setSchema(Map.of("type", "string"));
-        method.setPrefill(Map.of());
-        method.setPromptOptions(List.of());
+        method.setSchema(map("type", "string"));
+        method.setPrefill(map());
+        method.setPromptOptions(list());
         assertEquals("API Key", method.getLabel());
         assertEquals("api-key", method.getType());
     }
@@ -656,10 +656,10 @@ class ModelClassesTest {
     @Test
     void shouldCreateProviderList() {
         ProviderList list = new ProviderList();
-        list.setAll(List.of());
-        list.setDefaults(Map.of("default", "anthropic/claude-sonnet-4-5"));
-        list.setDefault_(Map.of("default", "anthropic/claude-sonnet-4-5"));
-        list.setConnected(List.of("anthropic"));
+        list.setAll(list());
+        list.setDefaults(map("default", "anthropic/claude-sonnet-4-5"));
+        list.setDefault_(map("default", "anthropic/claude-sonnet-4-5"));
+        list.setConnected(list("anthropic"));
         assertTrue(list.getAll().isEmpty());
         assertEquals(1, list.getConnected().size());
     }
@@ -679,7 +679,7 @@ class ModelClassesTest {
         opt.setLabel("Option A");
         opt.setDescription("First option");
         opt.setPreview("preview");
-        qr.setOptions(List.of(opt));
+        qr.setOptions(list(opt));
         assertEquals("q-1", qr.getId());
         assertEquals(1, qr.getOptions().size());
         assertEquals("Option A", qr.getOptions().get(0).getLabel());
@@ -697,7 +697,7 @@ class ModelClassesTest {
         s.setParentId(null);
         s.setCreatedAt("2025-01-01");
         s.setUpdatedAt("2025-01-02");
-        s.setMetadata(Map.of("key", "val"));
+        s.setMetadata(map("key", "val"));
         assertEquals("sess-1", s.getId());
         assertEquals("my-session", s.getTitle());
     }
@@ -759,7 +759,7 @@ class ModelClassesTest {
         sym.setContainerName("io.github.easy4j.opencode");
         sym.setLocation("OpenCodeClient.java:50");
         sym.setUri("file:///project/OpenCodeClient.java");
-        sym.setRange(Map.of());
+        sym.setRange(map());
         assertEquals("OpenCodeClient", sym.getName());
         assertEquals("class", sym.getKind());
     }
