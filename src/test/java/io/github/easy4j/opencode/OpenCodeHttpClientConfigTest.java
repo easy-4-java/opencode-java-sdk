@@ -33,6 +33,8 @@ class OpenCodeHttpClientConfigTest {
         assertEquals(60_000L, config.getStreamKeepAliveMillis());
         assertEquals(1_024, config.getStreamEventQueueCapacity());
         assertTrue(config.isRetryOnConnectionFailure());
+        assertFalse(config.isDetailedLoggingEnabled());
+        assertEquals(2_000, config.getMaxLoggedBodyLength());
         assertTrue(config.isVerifySsl());
         assertNull(config.getDefaultModel());
         assertNull(config.getDefaultAgent());

@@ -48,6 +48,9 @@ public class OpenCodeSseClient implements AutoCloseable {
         this.config = config;
         this.mapper = Objects.isNull(objectMapper) ? new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false) : objectMapper;
         this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
+        log.debug("OpenCode SSE client initialized: baseUrl={}, connectTimeoutMs={}, eventQueueCapacity={}, detailedLoggingEnabled={}",
+                config.getBaseUrl(), config.getConnectTimeoutMillis(), config.getStreamEventQueueCapacity(),
+                config.isDetailedLoggingEnabled());
     }
 
     private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
@@ -74,10 +77,13 @@ public class OpenCodeSseClient implements AutoCloseable {
 
     public EventSource subscribe(Consumer<Event> consumer, OpenCodeRequestContext context) {
         Request request = buildRequest(context);
+        long startedAt = System.nanoTime();
+        log.debug("SSE subscription started: url={}", request.url());
         EventSourceListener listener = new EventSourceListener() {
             @Override
             public void onOpen(EventSource es, Response response) {
-                log.info("SSE connected to {}/event", config.getBaseUrl());
+                log.info("SSE connected: url={}, status={}, elapsedMs={}", request.url(), response.code(),
+                        (System.nanoTime() - startedAt) / 1_000_000L);
             }
 
             @Override
@@ -87,7 +93,11 @@ public class OpenCodeSseClient implements AutoCloseable {
                         Event event = mapper.readValue(data, Event.class);
                         consumer.accept(event);
                     } catch (Exception e) {
-                        log.debug("Failed to parse SSE event: {}", data, e);
+                        if (config.isDetailedLoggingEnabled()) {
+                            log.debug("Failed to parse SSE event: {}", data, e);
+                        } else {
+                            log.debug("Failed to parse SSE event: dataLength={}, error={}", data.length(), e.getMessage());
+                        }
                     }
                 }
             }
