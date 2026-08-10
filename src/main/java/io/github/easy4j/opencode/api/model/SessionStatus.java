@@ -20,7 +20,7 @@ public class SessionStatus {
     private String type;
 
     /**
-     * OpenCode 协议字段 {@code message}；Java 类型为 {@code String}。
+     * 状态附带的诊断说明；正常状态下可能为空。
      */
     private String message;
 }

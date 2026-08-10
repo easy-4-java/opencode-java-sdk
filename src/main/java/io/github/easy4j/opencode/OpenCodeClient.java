@@ -69,7 +69,7 @@ public class OpenCodeClient implements AutoCloseable {
      */
     private final OpenCodeSseClient sseClient;
     /**
-     * OpenCode 协议字段 {@code cli}；Java 类型为 {@code OpenCodeCli}。
+     * 本地 CLI 操作门面；CLI 子系统禁用时为 {@code null}。
      */
     private final OpenCodeCli cli;
     /**

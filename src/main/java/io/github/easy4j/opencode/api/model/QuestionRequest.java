@@ -52,7 +52,7 @@ public class QuestionRequest {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class QuestionOption {
         /**
-         * OpenCode 协议字段 {@code label}；Java 类型为 {@code String}。
+         * 问题选项向用户展示的标题文本。
          */
         private String label;
         /**
@@ -60,7 +60,7 @@ public class QuestionRequest {
          */
         private String description;
         /**
-         * OpenCode 协议字段 {@code preview}；Java 类型为 {@code String}。
+         * 选择该选项前向用户展示的预览内容。
          */
         private String preview;
     }

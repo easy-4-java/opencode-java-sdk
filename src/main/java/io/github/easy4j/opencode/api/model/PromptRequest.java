@@ -59,11 +59,11 @@ public class PromptRequest {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ModelRef {
         /**
-         * OpenCode 协议字段 {@code providerID}；Java 类型为 {@code String}。
+         * 模型提供方 ID，与 {@code modelID} 共同定位目标模型。
          */
         private String providerID;
         /**
-         * OpenCode 协议字段 {@code modelID}；Java 类型为 {@code String}。
+         * 提供方内部的模型 ID，与 {@code providerID} 配套使用。
          */
         private String modelID;
     }

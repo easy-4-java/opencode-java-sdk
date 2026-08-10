@@ -27,30 +27,30 @@ public class Project {
     private String name;
 
     /**
-     * OpenCode 协议字段 {@code icon}；Java 类型为 {@code String}。
+     * 项目图标标识或图标资源地址。
      */
     private String icon;
 
     /**
-     * OpenCode 协议字段 {@code worktree}；Java 类型为 {@code String}。
+     * 项目主工作目录路径。
      */
     @JsonProperty("worktree")
     private String worktree;
 
     /**
-     * OpenCode 协议字段 {@code vcsDir}；Java 类型为 {@code String}。
+     * 版本控制元数据目录路径。
      */
     @JsonProperty("vcsDir")
     private String vcsDir;
 
     /**
-     * OpenCode 协议字段 {@code vcs}；Java 类型为 {@code String}。
+     * 项目使用的版本控制系统类型。
      */
     @JsonProperty("vcs")
     private String vcs;
 
     /**
-     * OpenCode 协议字段 {@code sandboxes}；Java 类型为 {@code java.util.List<String>}。
+     * 项目关联的沙箱目录列表。
      */
     @JsonProperty("sandboxes")
     private java.util.List<String> sandboxes;

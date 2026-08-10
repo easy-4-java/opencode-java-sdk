@@ -14,7 +14,7 @@ import lombok.Getter;
 public class OpenCodeCliStartupException extends RuntimeException {
 
     /**
-     * OpenCode 协议字段 {@code availabilityReport}；Java 类型为 {@code OpenCodeCliAvailabilityReport}。
+     * CLI 启动失败时保留的完整可用性探测报告。
      */
     private final OpenCodeCliAvailabilityReport availabilityReport;
 

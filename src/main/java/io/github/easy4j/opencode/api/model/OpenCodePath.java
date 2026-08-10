@@ -16,12 +16,12 @@ import lombok.Data;
 public class OpenCodePath {
 
     /**
-     * OpenCode 协议字段 {@code home}；Java 类型为 {@code String}。
+     * 当前用户的主目录路径。
      */
     private String home;
 
     /**
-     * OAuth 防重放状态值。
+     * OpenCode 持久化运行状态目录。
      */
     private String state;
 
@@ -31,17 +31,17 @@ public class OpenCodePath {
     private String config;
 
     /**
-     * OpenCode 协议字段 {@code directory}；Java 类型为 {@code String}。
+     * 当前 OpenCode Server 实例的工作目录。
      */
     private String directory;
 
     /**
-     * OpenCode 协议字段 {@code worktree}；Java 类型为 {@code String}。
+     * 当前项目工作树根目录。
      */
     private String worktree;
 
     /**
-     * OpenCode 协议字段 {@code worktreeDir}；Java 类型为 {@code String}。
+     * 服务端返回的工作树目录兼容字段。
      */
     @JsonProperty("worktree_dir")
     private String worktreeDir;

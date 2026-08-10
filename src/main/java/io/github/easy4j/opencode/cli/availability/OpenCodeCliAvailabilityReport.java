@@ -21,23 +21,23 @@ public class OpenCodeCliAvailabilityReport {
      */
     private final OpenCodeCliAvailabilityStatus status;
     /**
-     * OpenCode 协议字段 {@code available}；Java 类型为 {@code boolean}。
+     * 本地 OpenCode CLI 是否已通过可用性探测。
      */
     private final boolean available;
     /**
-     * OpenCode 协议字段 {@code configuredExecutable}；Java 类型为 {@code String}。
+     * 配置中声明的可执行文件名称或路径。
      */
     private final String configuredExecutable;
     /**
-     * OpenCode 协议字段 {@code resolvedExecutablePath}；Java 类型为 {@code String}。
+     * 探测后解析得到的可执行文件绝对路径；未找到时为空。
      */
     private final String resolvedExecutablePath;
     /**
-     * OpenCode 协议字段 {@code message}；Java 类型为 {@code String}。
+     * 面向诊断的可用性说明或失败原因。
      */
     private final String message;
     /**
-     * OpenCode 协议字段 {@code probeResult}；Java 类型为 {@code OpenCodeCliResult}。
+     * 执行版本探测命令得到的退出状态和输出；命令未启动时为空。
      */
     private final OpenCodeCliResult probeResult;
 

@@ -16,7 +16,7 @@ import java.util.Map;
 public class SseEvent {
 
     /**
-     * OpenCode 协议中的类型判别值。
+     * SSE 事件类型，例如 {@code session.idle} 或 {@code message.part.updated}。
      */
     private String type;
     /**

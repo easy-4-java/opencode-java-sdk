@@ -35,7 +35,7 @@ public class OpenCodeCallbackParser {
      */
     private static final Logger log = LoggerFactory.getLogger(OpenCodeCallbackParser.class);
     /**
-     * OpenCode 协议字段 {@code MAPPER}；Java 类型为 {@code ObjectMapper}。
+     * 用于解析回调 JSON 的共享映射器，允许注释并忽略服务端新增字段。
      */
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
