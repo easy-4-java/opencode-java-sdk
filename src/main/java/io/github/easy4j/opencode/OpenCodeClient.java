@@ -17,12 +17,7 @@ import okhttp3.OkHttpClient;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 /**
@@ -65,7 +60,6 @@ public class OpenCodeClient implements AutoCloseable {
     private final OpenCodeChatClient chatClient;
     private final OpenCodeSseClient sseClient;
     private final OpenCodeCli cli;
-    private final ExecutorService streamExecutor;
 
     // ============================================================
     // 构造器
@@ -128,7 +122,6 @@ public class OpenCodeClient implements AutoCloseable {
             this.chatClient = null;
             this.sseClient = null;
         }
-        this.streamExecutor = createStreamExecutor(httpConfig);
 
         // CLI 子系统初始化
         if (cliEnabled) {
@@ -167,21 +160,6 @@ public class OpenCodeClient implements AutoCloseable {
         this.chatClient = httpClient instanceof OpenCodeChatClient ? (OpenCodeChatClient) httpClient : null;
         this.sseClient = sseClient;
         this.cli = cli;
-        this.streamExecutor = createStreamExecutor(config.getHttp());
-    }
-
-    private static ExecutorService createStreamExecutor(OpenCodeHttpClientConfig config) {
-        int corePoolSize = Math.max(1, config.getStreamCorePoolSize());
-        int maxPoolSize = Math.max(corePoolSize, config.getStreamMaxPoolSize());
-        AtomicInteger threadIndex = new AtomicInteger();
-        return new ThreadPoolExecutor(corePoolSize, maxPoolSize,
-                Math.max(1L, config.getStreamKeepAliveMillis()), TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(Math.max(1, config.getStreamQueueCapacity())), runnable -> {
-                    Thread thread = new Thread(runnable,
-                            "opencode-stream-consumer-" + threadIndex.incrementAndGet());
-                    thread.setDaemon(true);
-                    return thread;
-                }, new ThreadPoolExecutor.AbortPolicy());
     }
 
     // ============================================================
@@ -341,7 +319,7 @@ public class OpenCodeClient implements AutoCloseable {
         return httpClient.chatCompletionWithSession(PromptRequest.ofText(text, providerID, modelID), sessionKey);
     }
 
-    public boolean chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
+    public CompletableFuture<Boolean> chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
         return httpClient.chatCompletionWithSessionAsync(request, sessionKey);
     }
 
@@ -355,6 +333,11 @@ public class OpenCodeClient implements AutoCloseable {
         return ChatMessageMapper.toChatResponse(result);
     }
 
+    /** 异步完成指定会话的聊天请求。 */
+    public CompletableFuture<ChatResponse> chatCompletionAsync(String sessionId, ChatRequest request) {
+        return chatClient.chatCompletionAsync(sessionId, request);
+    }
+
     public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey) {
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey);
@@ -366,6 +349,13 @@ public class OpenCodeClient implements AutoCloseable {
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         PromptResult result = httpClient.chatCompletionWithSession(promptRequest, sessionKey, cancellation);
         return ChatMessageMapper.toChatResponse(result);
+    }
+
+    /** 异步查找会话并完成聊天请求。 */
+    public CompletableFuture<ChatResponse> chatCompletionWithSessionAsync(ChatRequest request,
+                                                                          String sessionKey,
+                                                                          HttpCallCancellation cancellation) {
+        return chatClient.chatCompletionWithSessionAsync(request, sessionKey, cancellation);
     }
 
     public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey) {
@@ -383,117 +373,23 @@ public class OpenCodeClient implements AutoCloseable {
     public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context,
                                                        Consumer<String> deltaConsumer) {
-        String sessionId = httpClient.ensureSession(sessionKey, context);
-        PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
-
-        StreamingChatResponse stream = new StreamingChatResponse().onDelta(deltaConsumer);
-
-        OpenCodeSseClient.QueueSubscription subscription =
-                sseClient.subscribeQueueSubscription(context);
-        java.util.concurrent.BlockingQueue<Event> queue = subscription.getQueue();
-
-        try {
-            streamExecutor.submit(() -> {
-            try {
-                long deadline = System.currentTimeMillis() + (config.getCli().getTimeout() * 1000L);
-                while (!stream.isDone() && System.currentTimeMillis() < deadline) {
-                    Event event = queue.poll(3, java.util.concurrent.TimeUnit.SECONDS);
-                    if (event == null) {
-                        continue;
-                    }
-
-                    String eventSessionId = event.getProperties() != null
-                            ? Objects.toString(event.getProperties().get("sessionID"), null) : null;
-                    if (eventSessionId == null || !eventSessionId.equals(sessionId)) {
-                        continue;
-                    }
-
-                    String type = event.getType();
-                    if (type == null) {
-                        continue;
-                    }
-
-                    if (type.contains("text.delta") || type.contains("message.part.updated")) {
-                        String delta = extractDeltaText(event);
-                        if (delta != null && !delta.isEmpty()) {
-                            stream.acceptDelta(delta);
-                        }
-                    }
-
-                    if (type.contains("session.status") || type.contains("session.idle")) {
-                        String status = event.getProperties() != null
-                                ? Objects.toString(event.getProperties().get("status"), null) : null;
-                        if ("idle".equals(status) || type.contains("idle")) {
-                            stream.finish();
-                            return;
-                        }
-                    }
-
-                    if (type.contains("session.error")) {
-                        String error = event.getProperties() != null
-                                ? Objects.toString(event.getProperties().get("error"), "unknown error") : "unknown error";
-                        stream.fail(new RuntimeException(error));
-                        return;
-                    }
-                }
-                if (!stream.isDone()) {
-                    stream.fail(new RuntimeException("Stream timed out for session: " + sessionId));
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                stream.fail(e);
-            } catch (Exception e) {
-                stream.fail(e);
-            } finally {
-                subscription.close();
-            }
-            });
-        } catch (RejectedExecutionException error) {
-            subscription.close();
-            stream.fail(new IllegalStateException("OpenCode stream executor is full", error));
+        if (Objects.isNull(chatClient)) {
+            StreamingChatResponse stream = new StreamingChatResponse();
+            stream.fail(new IllegalStateException("OpenCodeChatClient is not configured"));
             return stream;
         }
-
-        try {
-            if (!httpClient.promptAsync(sessionId, promptRequest, context)) {
-                subscription.close();
-                stream.fail(new IllegalStateException("OpenCode async prompt was rejected"));
-            }
-        } catch (RuntimeException error) {
-            subscription.close();
-            stream.fail(error);
-        }
-
-        return stream;
-    }
-
-    private static String extractDeltaText(Event event) {
-        if (event.getProperties() == null) {
-            return null;
-        }
-        Object part = event.getProperties().get("part");
-        if (part instanceof Map) {
-            Object text = ((Map<?, ?>) part).get("text");
-            if (text != null) {
-                return text.toString();
-            }
-        }
-        Object delta = event.getProperties().get("delta");
-        if (delta != null) {
-            return delta.toString();
-        }
-        return null;
+        return chatClient.chatCompletionStream(request, sessionKey, context, deltaConsumer);
     }
 
     public String ensureSession(String sessionKey) {
         return httpClient.ensureSession(sessionKey);
     }
 
-    public boolean chatCompletionAsync(String sessionId, PromptRequest request) {
+    public CompletableFuture<Boolean> chatCompletionAsync(String sessionId, PromptRequest request) {
         return httpClient.promptAsync(sessionId, request);
     }
 
-    public boolean chatCompletionAsync(String sessionId, String text) {
+    public CompletableFuture<Boolean> chatCompletionAsync(String sessionId, String text) {
         return httpClient.promptAsync(sessionId, PromptRequest.ofText(text));
     }
 
@@ -519,6 +415,11 @@ public class OpenCodeClient implements AutoCloseable {
 
     public HealthStatus health() {
         return httpClient.health();
+    }
+
+    /** 异步检查 OpenCode Server 健康状态。 */
+    public CompletableFuture<HealthStatus> healthAsync() {
+        return httpClient.healthAsync();
     }
 
     // ============================================================
@@ -976,7 +877,6 @@ public class OpenCodeClient implements AutoCloseable {
 
     @Override
     public void close() {
-        if (streamExecutor != null) streamExecutor.shutdownNow();
         if (httpClient != null) httpClient.close();
         if (sseClient != null) sseClient.close();
     }

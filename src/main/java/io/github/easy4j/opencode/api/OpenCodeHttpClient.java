@@ -70,7 +70,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
     // ============================================================
 
     public HealthStatus health() {
-        return get("/global/health", HealthStatus.class);
+        return awaitFuture(healthAsync());
+    }
+
+    /** 异步检查 OpenCode Server 健康状态。 */
+    public CompletableFuture<HealthStatus> healthAsync() {
+        return getAsync("/global/health", HealthStatus.class);
     }
 
     // ============================================================
@@ -180,7 +185,13 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     public PromptResult prompt(String sessionId, PromptRequest request,
                                HttpCallCancellation cancellation) {
-        return post("/session/" + sessionId + "/message", request, PromptResult.class,
+        return awaitFuture(promptCompletionAsync(sessionId, request, cancellation));
+    }
+
+    /** 异步发送消息并等待完整 Prompt 结果。 */
+    public CompletableFuture<PromptResult> promptCompletionAsync(String sessionId, PromptRequest request,
+                                                                 HttpCallCancellation cancellation) {
+        return postAsync("/session/" + sessionId + "/message", request, PromptResult.class,
                 null, cancellation);
     }
 
@@ -220,7 +231,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
                 .handle((sessions, error) -> {
                     if (Objects.nonNull(error)) {
                         if (Objects.nonNull(cancellation) && cancellation.isCancelled()) {
-                            throw new CompletionException(error);
+                            Throwable cause = error instanceof CompletionException && Objects.nonNull(error.getCause())
+                                    ? error.getCause() : error;
+                            if (cause instanceof RuntimeException) {
+                                throw (RuntimeException) cause;
+                            }
+                            throw new CompletionException(cause);
                         }
                         log.debug("findSessionByTitle failed, sessionKey={}, error={}",
                                 sessionKey, error.getMessage());
@@ -791,8 +807,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private <T> T get(String path, Class<T> type) {
+        return awaitFuture(getAsync(path, type));
+    }
+
+    private <T> CompletableFuture<T> getAsync(String path, Class<T> type) {
         Request request = authedRequest(url(path)).get().build();
-        return execute(request, type);
+        return executeAsync(request, type, null);
     }
 
 
@@ -1008,7 +1028,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
         return executeResponseAsync(request, cancellation).thenApply(HttpResponseData::isSuccessful);
     }
 
-    private <T> T awaitFuture(CompletableFuture<T> future) {
+    protected <T> T awaitFuture(CompletableFuture<T> future) {
         try {
             return future.join();
         } catch (CompletionException error) {

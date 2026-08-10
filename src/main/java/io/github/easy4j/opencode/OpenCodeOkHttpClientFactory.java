@@ -5,7 +5,10 @@ import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 
 import java.util.Objects;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Factory for creating {@link OkHttpClient} instances used by the OpenCode SDK in standalone mode.
@@ -30,8 +33,18 @@ public final class OpenCodeOkHttpClientFactory {
      */
     public static OkHttpClient create(OpenCodeHttpClientConfig config) {
         Objects.requireNonNull(config, "config");
-        Dispatcher dispatcher = new Dispatcher();
-        dispatcher.setMaxRequests(Math.max(1, config.getMaxRequests()));
+        int maxRequests = Math.max(1, config.getMaxRequests());
+        AtomicInteger threadIndex = new AtomicInteger();
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(maxRequests, maxRequests, 60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(maxRequests), runnable -> {
+                    Thread thread = new Thread(runnable,
+                            "opencode-okhttp-dispatcher-" + threadIndex.incrementAndGet());
+                    thread.setDaemon(true);
+                    return thread;
+                });
+        executor.allowCoreThreadTimeOut(true);
+        Dispatcher dispatcher = new Dispatcher(executor);
+        dispatcher.setMaxRequests(maxRequests);
         dispatcher.setMaxRequestsPerHost(Math.max(1, config.getMaxRequestsPerHost()));
         ConnectionPool connectionPool = new ConnectionPool(
                 Math.max(1, config.getMaxIdleConnections()),
