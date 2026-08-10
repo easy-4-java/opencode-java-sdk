@@ -9,17 +9,17 @@ package io.github.easy4j.opencode;
 public enum HttpResponseMode {
 
     /**
-     * blocking枚举值。
+     * 等待响应体完整读取后再返回，适用于普通同步 REST 调用。
      */
     BLOCKING,
 
     /**
-     * stream枚举值。
+     * 保持响应连接并逐段消费数据，适用于 SSE 或其他流式响应。
      */
     STREAM,
 
     /**
-     * auto枚举值。
+     * 由具体 API 根据端点类型自动选择缓冲或流式模式。
      */
     AUTO
 }

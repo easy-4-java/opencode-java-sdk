@@ -19,12 +19,12 @@ import java.util.Map;
 public class ProviderAuthMethod {
 
     /**
-     * OpenCode 协议字段 {@code label}；Java 类型为 {@code String}。
+     * 认证方式向用户展示的名称。
      */
     private String label;
 
     /**
-     * OpenCode 协议中的类型判别值。
+     * 认证流程类型，例如 OAuth、API Key 或交互式登录。
      */
     private String type;
 

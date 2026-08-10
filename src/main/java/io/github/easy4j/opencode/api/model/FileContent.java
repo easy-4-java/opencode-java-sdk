@@ -16,7 +16,7 @@ import lombok.Data;
 public class FileContent {
 
     /**
-     * OpenCode 协议中的类型判别值。
+     * 文件内容类型，例如文本或二进制。
      */
     private String type;
 

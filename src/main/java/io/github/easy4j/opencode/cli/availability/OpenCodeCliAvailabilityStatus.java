@@ -10,42 +10,42 @@ package io.github.easy4j.opencode.cli.availability;
 public enum OpenCodeCliAvailabilityStatus {
 
     /**
-     * available枚举值。
+     * CLI 可执行文件存在且版本探测命令成功。
      */
     AVAILABLE,
 
     /**
-     * executable not configured枚举值。
+     * 配置中没有提供 CLI 可执行文件名称或路径。
      */
     EXECUTABLE_NOT_CONFIGURED,
 
     /**
-     * executable not found枚举值。
+     * 在配置路径和系统 PATH 中均未找到可执行文件。
      */
     EXECUTABLE_NOT_FOUND,
 
     /**
-     * executable not executable枚举值。
+     * 目标文件存在，但当前进程没有执行权限。
      */
     EXECUTABLE_NOT_EXECUTABLE,
 
     /**
-     * spawn failed枚举值。
+     * 操作系统拒绝或无法启动 CLI 子进程。
      */
     SPAWN_FAILED,
 
     /**
-     * non zero exit枚举值。
+     * 版本探测命令已运行，但以非零状态码退出。
      */
     NON_ZERO_EXIT,
 
     /**
-     * timeout枚举值。
+     * 版本探测命令未在配置的超时时间内结束。
      */
     TIMEOUT,
 
     /**
-     * failed枚举值。
+     * 探测过程中发生未归类的异常。
      */
     FAILED
 }

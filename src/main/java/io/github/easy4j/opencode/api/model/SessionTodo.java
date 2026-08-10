@@ -31,7 +31,7 @@ public class SessionTodo {
     private String status;
 
     /**
-     * OpenCode 协议字段 {@code priority}；Java 类型为 {@code String}。
+     * 待办项优先级，例如 high、medium 或 low。
      */
     @JsonProperty("Priority")
     private String priority;

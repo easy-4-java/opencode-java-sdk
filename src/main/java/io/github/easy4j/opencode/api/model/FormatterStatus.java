@@ -25,7 +25,7 @@ public class FormatterStatus {
     private Boolean enabled;
 
     /**
-     * OpenCode 协议字段 {@code command}；Java 类型为 {@code String}。
+     * 启动该格式化器时使用的命令行。
      */
     private String command;
 }

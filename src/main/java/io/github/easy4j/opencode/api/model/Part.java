@@ -16,11 +16,11 @@ import lombok.Data;
 public class Part {
 
     /**
-     * OpenCode 协议中的类型判别值。
+     * 消息片段类型，例如 {@code text}、{@code tool_use} 或 {@code tool_result}。
      */
     private String type;
     /**
-     * OpenCode 协议字段 {@code text}；Java 类型为 {@code String}。
+     * 文本类型消息片段的正文；非文本片段可能为空。
      */
     private String text;
 
