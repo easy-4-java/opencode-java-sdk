@@ -11,14 +11,14 @@ import io.github.easy4j.opencode.api.model.Event;
 import io.github.easy4j.opencode.api.model.PromptRequest;
 import io.github.easy4j.opencode.api.model.PromptResult;
 import okhttp3.OkHttpClient;
+import okhttp3.sse.EventSource;
 
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -33,7 +33,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
 
     private final OpenCodeHttpClientConfig config;
     private final OpenCodeSseClient eventClient;
-    private final ExecutorService streamExecutor;
+    private final ScheduledExecutorService timeoutScheduler;
 
     public OpenCodeChatClient(OpenCodeHttpClientConfig config) {
         this(config, new ObjectMapper(), null);
@@ -44,38 +44,45 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
         super(config, objectMapper, httpClient);
         this.config = Objects.requireNonNull(config, "config");
         this.eventClient = new OpenCodeSseClient(config, objectMapper, getOkHttpClient());
-        this.streamExecutor = createStreamExecutor(config);
+        this.timeoutScheduler = createTimeoutScheduler();
     }
 
-    private static ExecutorService createStreamExecutor(OpenCodeHttpClientConfig config) {
-        int corePoolSize = Math.max(1, config.getStreamCorePoolSize());
-        int maxPoolSize = Math.max(corePoolSize, config.getStreamMaxPoolSize());
+    private static ScheduledExecutorService createTimeoutScheduler() {
         AtomicInteger threadIndex = new AtomicInteger();
-        return new ThreadPoolExecutor(corePoolSize, maxPoolSize,
-                Math.max(1L, config.getStreamKeepAliveMillis()), TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(Math.max(1, config.getStreamQueueCapacity())), runnable -> {
+        return Executors.newSingleThreadScheduledExecutor(runnable -> {
                     Thread thread = new Thread(runnable,
-                            "opencode-stream-consumer-" + threadIndex.incrementAndGet());
+                            "opencode-stream-timeout-" + threadIndex.incrementAndGet());
                     thread.setDaemon(true);
                     return thread;
-                }, new ThreadPoolExecutor.AbortPolicy());
+                });
     }
 
     public ChatResponse chatCompletion(String sessionId, ChatRequest request) {
-        PromptResult result = prompt(sessionId, ChatMessageMapper.toPromptRequest(request));
-        return ChatMessageMapper.toChatResponse(result);
+        return chatCompletionAsync(sessionId, request).join();
+    }
+
+    /** 异步完成指定会话的聊天请求。 */
+    public CompletableFuture<ChatResponse> chatCompletionAsync(String sessionId, ChatRequest request) {
+        return promptCompletionAsync(sessionId, ChatMessageMapper.toPromptRequest(request), null)
+                .thenApply(ChatMessageMapper::toChatResponse);
     }
 
     public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey) {
-        PromptResult result = chatCompletionWithSession(ChatMessageMapper.toPromptRequest(request), sessionKey);
-        return ChatMessageMapper.toChatResponse(result);
+        return chatCompletionWithSessionAsync(request, sessionKey, null).join();
     }
 
     public ChatResponse chatCompletionWithSession(ChatRequest request, String sessionKey,
                                                   HttpCallCancellation cancellation) {
-        PromptResult result = chatCompletionWithSession(
-                ChatMessageMapper.toPromptRequest(request), sessionKey, cancellation);
-        return ChatMessageMapper.toChatResponse(result);
+        return chatCompletionWithSessionAsync(request, sessionKey, cancellation).join();
+    }
+
+    /** 异步查找会话并完成聊天请求。 */
+    public CompletableFuture<ChatResponse> chatCompletionWithSessionAsync(ChatRequest request, String sessionKey,
+                                                                         HttpCallCancellation cancellation) {
+        return ensureSessionAsync(sessionKey, null, cancellation)
+                .thenCompose(sessionId -> promptCompletionAsync(sessionId,
+                        ChatMessageMapper.toPromptRequest(request), cancellation))
+                .thenApply(ChatMessageMapper::toChatResponse);
     }
 
     public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey) {
@@ -91,73 +98,57 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
     public StreamingChatResponse chatCompletionStream(ChatRequest request, String sessionKey,
                                                        OpenCodeRequestContext context,
                                                        Consumer<String> deltaConsumer) {
-        String sessionId = ensureSession(sessionKey, context);
         PromptRequest promptRequest = ChatMessageMapper.toPromptRequest(request);
         StreamingChatResponse stream = new StreamingChatResponse().onDelta(deltaConsumer);
-        OpenCodeSseClient.QueueSubscription subscription = eventClient.subscribeQueueSubscription(context);
-        BlockingQueue<Event> queue = subscription.getQueue();
-
-        try {
-            streamExecutor.submit(() -> consumeEvents(sessionId, queue, subscription, stream));
-        } catch (RejectedExecutionException error) {
-            subscription.close();
-            stream.fail(new IllegalStateException("OpenCode stream executor is full", error));
-            return stream;
-        }
-
-        try {
-            if (!promptAsync(sessionId, promptRequest, context)) {
-                subscription.close();
-                stream.fail(new IllegalStateException("OpenCode async prompt was rejected"));
+        ensureSessionAsync(sessionKey, context, null).whenComplete((sessionId, sessionError) -> {
+            if (Objects.nonNull(sessionError)) {
+                stream.fail(sessionError);
+                return;
             }
-        } catch (RuntimeException error) {
-            subscription.close();
-            stream.fail(error);
-        }
+            EventSource source = eventClient.subscribeSession(sessionId,
+                    event -> handleEvent(sessionId, event, stream), context);
+            ScheduledFuture<?> timeout = timeoutScheduler.schedule(() -> {
+                if (!stream.isDone()) {
+                    stream.fail(new IllegalStateException("Stream timed out for session: " + sessionId));
+                }
+            }, Math.max(1L, config.getReadTimeoutMillis()), TimeUnit.MILLISECONDS);
+            Runnable close = () -> {
+                timeout.cancel(false);
+                source.cancel();
+            };
+            stream.onCancel(close);
+            stream.whenComplete((value, error) -> close.run());
+            promptAsync(sessionId, promptRequest, context).whenComplete((accepted, promptError) -> {
+                if (Objects.nonNull(promptError)) {
+                    stream.fail(promptError);
+                } else if (!Boolean.TRUE.equals(accepted)) {
+                    stream.fail(new IllegalStateException("OpenCode async prompt was rejected"));
+                }
+            });
+        });
         return stream;
     }
 
-    private void consumeEvents(String sessionId, BlockingQueue<Event> queue,
-                               OpenCodeSseClient.QueueSubscription subscription,
-                               StreamingChatResponse stream) {
-        try {
-            long timeoutMillis = Math.max(1L, config.getReadTimeoutMillis());
-            long deadline = System.currentTimeMillis() + timeoutMillis;
-            while (!stream.isDone() && System.currentTimeMillis() < deadline) {
-                Event event = queue.poll(3, TimeUnit.SECONDS);
-                if (Objects.isNull(event) || !matchesSession(event, sessionId)) {
-                    continue;
-                }
-                String type = event.getType();
-                if (Objects.isNull(type)) {
-                    continue;
-                }
-                if (type.contains("text.delta") || type.contains("message.part.updated")) {
-                    stream.acceptDelta(extractDeltaText(event));
-                }
-                if (type.contains("session.status") || type.contains("session.idle")) {
-                    String status = Objects.toString(event.getProperties().get("status"), null);
-                    if (Objects.equals("idle", status) || type.contains("idle")) {
-                        stream.finish();
-                        return;
-                    }
-                }
-                if (type.contains("session.error")) {
-                    stream.fail(new IllegalStateException(
-                            Objects.toString(event.getProperties().get("error"), "unknown error")));
-                    return;
-                }
+    private void handleEvent(String sessionId, Event event, StreamingChatResponse stream) {
+        if (Objects.isNull(event) || !matchesSession(event, sessionId) || stream.isDone()) {
+            return;
+        }
+        String type = event.getType();
+        if (Objects.isNull(type)) {
+            return;
+        }
+        if (type.contains("text.delta") || type.contains("message.part.updated")) {
+            stream.acceptDelta(extractDeltaText(event));
+        }
+        if (type.contains("session.status") || type.contains("session.idle")) {
+            String status = Objects.toString(event.getProperties().get("status"), null);
+            if (Objects.equals("idle", status) || type.contains("idle")) {
+                stream.finish();
             }
-            if (!stream.isDone()) {
-                stream.fail(new IllegalStateException("Stream timed out for session: " + sessionId));
-            }
-        } catch (InterruptedException error) {
-            Thread.currentThread().interrupt();
-            stream.fail(error);
-        } catch (RuntimeException error) {
-            stream.fail(error);
-        } finally {
-            subscription.close();
+        }
+        if (type.contains("session.error")) {
+            stream.fail(new IllegalStateException(
+                    Objects.toString(event.getProperties().get("error"), "unknown error")));
         }
     }
 
@@ -187,7 +178,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
 
     @Override
     public void close() {
-        streamExecutor.shutdownNow();
+        timeoutScheduler.shutdownNow();
         eventClient.close();
         super.close();
     }
