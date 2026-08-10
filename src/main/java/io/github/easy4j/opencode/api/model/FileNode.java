@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * Represents a file or directory node returned by {@code GET /file} or {@code GET /file/status}.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listFiles(String)
  */

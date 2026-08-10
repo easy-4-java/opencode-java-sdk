@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Represents a registered slash command in OpenCode, corresponding to a {@code GET /command} response element.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listCommands()
  */

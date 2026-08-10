@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * Represents the status of an MCP server, returned by {@code GET /mcp}.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listMcpServers()
  */

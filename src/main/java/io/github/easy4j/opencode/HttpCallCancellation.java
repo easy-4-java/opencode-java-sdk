@@ -7,7 +7,7 @@ package io.github.easy4j.opencode;
  * when the underlying HTTP call should be aborted. The {@link #onCancel(Runnable)} method
  * returns an {@link AutoCloseable} that, when closed, unregisters the callback.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient
  */

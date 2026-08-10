@@ -14,7 +14,7 @@ import java.util.List;
  * <p>Wraps an {@link OpenCodeCliExecutor} and provides typed methods for each CLI sub-command
  * (session, agent, models, providers, mcp, etc.).</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeCliExecutor
  * @see OpenCodeCliResult

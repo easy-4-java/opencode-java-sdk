@@ -8,7 +8,7 @@ import lombok.Data;
  * <p>Covers server base URL, Basic Auth, TLS, HTTP timeouts, connection pool sizing,
  * streaming thread pool, and default model/agent settings.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClient
  * @see OpenCodeOkHttpClientFactory

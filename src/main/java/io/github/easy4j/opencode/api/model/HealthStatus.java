@@ -6,7 +6,7 @@ import lombok.Data;
 /**
  * Represents the health check response from the OpenCode Server ({@code GET /global/health}).
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#health()
  */

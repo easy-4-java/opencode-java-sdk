@@ -28,7 +28,7 @@ import java.util.Optional;
  * connection pooling across plugins. All methods throw {@link io.github.easy4j.opencode.exception.OpenCodeHttpException}
  * on HTTP errors.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClientConfig
  * @see io.github.easy4j.opencode.exception.OpenCodeHttpException

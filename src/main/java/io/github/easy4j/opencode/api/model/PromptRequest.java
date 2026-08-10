@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Request body for sending a message to the OpenCode Server ({@code POST /session/:id/message}).
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see PromptResult
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#prompt(String, PromptRequest)

@@ -51,7 +51,7 @@ import java.util.function.Consumer;
  * CLI: {@code opencode --version}). If the probe fails but fail-fast is not enabled, only a
  * WARN log is emitted and construction continues.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClientConfig
  * @see OpenCodeCliConfig

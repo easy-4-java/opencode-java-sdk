@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Detailed information for a single message, returned by {@code GET /session/:id/message/:messageID}.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getMessage(String, String)
  */

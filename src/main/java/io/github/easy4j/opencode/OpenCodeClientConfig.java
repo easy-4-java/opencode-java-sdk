@@ -9,7 +9,7 @@ import lombok.Data;
  * {@link OpenCodeCliConfig} (local CLI settings). Compatible with Spring
  * {@code @ConfigurationProperties} binding.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClientConfig
  * @see OpenCodeCliConfig

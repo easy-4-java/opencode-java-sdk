@@ -11,7 +11,7 @@ import java.util.List;
  * <p>Structure: {@code { info: Message, parts: Part[] }}. Use {@link #getTextContent()} to
  * extract the concatenated text from all {@code type=text} parts.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see PromptRequest
  * @see Part

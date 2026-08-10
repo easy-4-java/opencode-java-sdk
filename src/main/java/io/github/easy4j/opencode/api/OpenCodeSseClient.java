@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * instances. Provides both callback-based and blocking-queue-based subscription models,
  * as well as session-scoped and type-filtered subscriptions.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClientConfig
  * @see io.github.easy4j.opencode.api.event.EventHandler

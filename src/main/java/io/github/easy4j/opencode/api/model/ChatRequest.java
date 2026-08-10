@@ -16,7 +16,7 @@ import java.util.Map;
  * converts: the last {@code user} message in {@code messages} becomes a {@code parts} text
  * entry; {@code model "provider/model"} is split into a {@link PromptRequest.ModelRef}.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see ChatMessage
  * @see ChatResponse

@@ -7,7 +7,7 @@ import lombok.Getter;
 /**
  * Report produced by the CLI availability probe during startup or readiness checks.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeCliAvailabilityChecker
  * @see OpenCodeCliAvailabilityStatus

@@ -9,7 +9,7 @@ import lombok.Data;
  * and other CLI runtime settings. Can be mapped from Spring
  * {@code @ConfigurationProperties}.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeClient
  * @see OpenCodeClientConfig
