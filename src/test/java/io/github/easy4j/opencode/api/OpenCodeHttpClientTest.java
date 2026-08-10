@@ -56,7 +56,7 @@ class OpenCodeHttpClientTest {
         OpenCodeRequestContext context = OpenCodeRequestContext.ofDirectory("/data/opencode/workspaces/t1/p1");
         String sessionId = client.ensureSession("stable-key", context);
         assertEquals("session-1", sessionId);
-        assertTrue(client.promptAsync(sessionId, PromptRequest.ofText("hello"), context));
+        assertTrue(client.promptAsync(sessionId, PromptRequest.ofText("hello"), context).join());
 
         for (int index = 0; index < 3; index++) {
             RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
