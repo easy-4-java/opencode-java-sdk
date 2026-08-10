@@ -19,7 +19,7 @@ import java.util.Objects;
  * arguments, capturing stdout and stderr. Supports timeout via {@link ExecuteWatchdog}
  * and working directory configuration.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeCliConfig
  * @see OpenCodeCliResult

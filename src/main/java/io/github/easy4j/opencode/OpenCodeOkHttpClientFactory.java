@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit;
  * <p>When a Spring container already provides an external {@link OkHttpClient}, the injection
  * constructors should be used instead and this factory will not participate.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClientConfig
  */

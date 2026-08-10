@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicLong;
 import okio.Buffer;
 
@@ -30,7 +32,7 @@ import okio.Buffer;
  * connection pooling across plugins. All methods throw {@link io.github.easy4j.opencode.exception.OpenCodeHttpException}
  * on HTTP errors.</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see OpenCodeHttpClientConfig
  * @see io.github.easy4j.opencode.exception.OpenCodeHttpException
@@ -85,8 +87,14 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     public Session createSession(String title, OpenCodeRequestContext context,
                                  HttpCallCancellation cancellation) {
+        return awaitFuture(createSessionAsync(title, context, cancellation));
+    }
+
+    /** 异步创建会话。 */
+    public CompletableFuture<Session> createSessionAsync(String title, OpenCodeRequestContext context,
+                                                         HttpCallCancellation cancellation) {
         Map<String, Object> body = title != null ? Collections.singletonMap("title", title) : Collections.emptyMap();
-        return post("/session", body, Session.class, context, cancellation);
+        return postAsync("/session", body, Session.class, context, cancellation);
     }
 
     public Session getSession(String sessionId) {
@@ -117,6 +125,13 @@ public class OpenCodeHttpClient implements AutoCloseable {
     private List<Session> listSessions(String search, Integer limit, Integer start,
                                        OpenCodeRequestContext context,
                                        HttpCallCancellation cancellation) {
+        return awaitFuture(listSessionsAsync(search, limit, start, context, cancellation));
+    }
+
+    /** 异步分页列出会话。 */
+    public CompletableFuture<List<Session>> listSessionsAsync(String search, Integer limit, Integer start,
+                                                              OpenCodeRequestContext context,
+                                                              HttpCallCancellation cancellation) {
         Map<String, String> params = new HashMap<>();
         if (search != null) params.put("search", search);
         if (limit != null) params.put("limit", String.valueOf(limit));
@@ -127,7 +142,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
             urlBuilder.addQueryParameter(entry.getKey(), entry.getValue());
         }
         Request request = authedRequest(urlBuilder.build().toString(), context).get().build();
-        return executeList(request, new TypeReference<List<Session>>() {}, cancellation);
+        return executeListAsync(request, new TypeReference<List<Session>>() {}, cancellation);
     }
 
     /**
@@ -180,9 +195,9 @@ public class OpenCodeHttpClient implements AutoCloseable {
         return prompt(sessionId, request, cancellation);
     }
 
-    public boolean chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
-        String sessionId = ensureSession(sessionKey);
-        return promptAsync(sessionId, request);
+    public CompletableFuture<Boolean> chatCompletionWithSessionAsync(PromptRequest request, String sessionKey) {
+        return ensureSessionAsync(sessionKey, null, null)
+                .thenCompose(sessionId -> promptAsync(sessionId, request));
     }
 
     public String ensureSession(String sessionKey) {
@@ -195,36 +210,50 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     public String ensureSession(String sessionKey, OpenCodeRequestContext context,
                                 HttpCallCancellation cancellation) {
-        try {
-            Optional<Session> existing = findSessionByTitle(sessionKey, context, cancellation);
-            if (existing.isPresent()) {
-                return existing.get().getId();
-            }
-        } catch (RuntimeException e) {
-            if (Thread.currentThread().isInterrupted()
-                    || cancellation != null && cancellation.isCancelled()) {
-                throw e;
-            }
-            log.debug("findSessionByTitle failed, sessionKey={}, error={}", sessionKey, e.getMessage());
-        }
-        Session session = createSession(sessionKey, context, cancellation);
-        return session.getId();
+        return awaitFuture(ensureSessionAsync(sessionKey, context, cancellation));
     }
 
-    public boolean promptAsync(String sessionId, PromptRequest request) {
+    /** 异步查找或创建会话，全链路不占用调用方线程等待网络。 */
+    public CompletableFuture<String> ensureSessionAsync(String sessionKey, OpenCodeRequestContext context,
+                                                        HttpCallCancellation cancellation) {
+        return listSessionsAsync(sessionKey, 50, null, context, cancellation)
+                .handle((sessions, error) -> {
+                    if (Objects.nonNull(error)) {
+                        if (Objects.nonNull(cancellation) && cancellation.isCancelled()) {
+                            throw new CompletionException(error);
+                        }
+                        log.debug("findSessionByTitle failed, sessionKey={}, error={}",
+                                sessionKey, error.getMessage());
+                        return Optional.<Session>empty();
+                    }
+                    return sessions.stream().filter(session -> Objects.equals(sessionKey, session.getTitle()))
+                            .findFirst();
+                }).thenCompose(existing -> existing.isPresent()
+                        ? CompletableFuture.completedFuture(existing.get().getId())
+                        : createSessionAsync(sessionKey, context, cancellation).thenApply(Session::getId));
+    }
+
+    public CompletableFuture<Boolean> promptAsync(String sessionId, PromptRequest request) {
         return promptAsync(sessionId, request, null);
     }
 
-    public boolean promptAsync(String sessionId, PromptRequest request, OpenCodeRequestContext context) {
+    /**
+     * 异步提交 prompt_async 请求。
+     *
+     * @param sessionId 会话 ID
+     * @param request Prompt 请求
+     * @param context 请求上下文
+     * @return 服务端是否接受请求
+     */
+    public CompletableFuture<Boolean> promptAsync(String sessionId, PromptRequest request,
+                                                  OpenCodeRequestContext context) {
         try {
             RequestBody body = RequestBody.create(objectMapper.writeValueAsBytes(request), JSON);
             Request httpReq = authedRequest(url("/session/" + sessionId + "/prompt_async"), context)
                     .post(body).build();
-            try (Response response = httpClient.newCall(httpReq).execute()) {
-                return response.isSuccessful();
-            }
+            return executeSuccessAsync(httpReq, null);
         } catch (IOException e) {
-            throw new OpenCodeHttpException("promptAsync failed: " + e.getMessage(), e);
+            return failedFuture(new OpenCodeHttpException("promptAsync failed: " + e.getMessage(), e));
         }
     }
 
@@ -355,17 +384,18 @@ public class OpenCodeHttpClient implements AutoCloseable {
      * {@code POST /provider/:id/oauth/callback}，处理 OAuth 回调。
      */
     public boolean providerOAuthCallback(String providerId, String code) {
+        return awaitFuture(providerOAuthCallbackAsync(providerId, code));
+    }
+
+    /** 异步处理 provider OAuth 回调。 */
+    public CompletableFuture<Boolean> providerOAuthCallbackAsync(String providerId, String code) {
         Map<String, Object> body = new HashMap<>();
         if (code != null) {
             body.put("code", code);
         }
         Request request = authedRequest(url("/provider/" + providerId + "/oauth/callback"))
                 .post(RequestBody.create(toJson(body), JSON)).build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            return response.isSuccessful();
-        } catch (IOException e) {
-            throw new OpenCodeHttpException("providerOAuthCallback failed: " + e.getMessage(), e);
-        }
+        return executeSuccessAsync(request, null);
     }
 
     // ============================================================
@@ -674,13 +704,14 @@ public class OpenCodeHttpClient implements AutoCloseable {
      * {@code PUT /auth/:id}，设置 provider 凭证。
      */
     public boolean setAuth(String providerId, Object body) {
+        return awaitFuture(setAuthAsync(providerId, body));
+    }
+
+    /** 异步设置 provider 凭证。 */
+    public CompletableFuture<Boolean> setAuthAsync(String providerId, Object body) {
         Request request = authedRequest(url("/auth/" + providerId))
                 .put(RequestBody.create(toJson(body), JSON)).build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            return response.isSuccessful();
-        } catch (IOException e) {
-            throw new OpenCodeHttpException("setAuth failed: " + e.getMessage(), e);
-        }
+        return executeSuccessAsync(request, null);
     }
 
     /**
@@ -807,10 +838,16 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     private <T> T post(String path, Object body, Class<T> type, OpenCodeRequestContext context,
                        HttpCallCancellation cancellation) {
+        return awaitFuture(postAsync(path, body, type, context, cancellation));
+    }
+
+    private <T> CompletableFuture<T> postAsync(String path, Object body, Class<T> type,
+                                               OpenCodeRequestContext context,
+                                               HttpCallCancellation cancellation) {
         Request request = authedRequest(url(path), context)
                 .post(RequestBody.create(toJson(body), JSON))
                 .build();
-        return execute(request, type, cancellation);
+        return executeAsync(request, type, cancellation);
     }
 
     private <T> T patch(String path, Object body, Class<T> type) {
@@ -842,11 +879,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     private boolean postNoBody(String path, OpenCodeRequestContext context) {
         Request request = authedRequest(url(path), context)
                 .post(RequestBody.create(new byte[0], null)).build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            return response.isSuccessful();
-        } catch (IOException e) {
-            throw new OpenCodeHttpException("POST failed: " + e.getMessage(), e);
-        }
+        return awaitFuture(executeSuccessAsync(request, null));
     }
 
     /**
@@ -855,11 +888,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     private boolean postNoBodyResp(String path, Object body) {
         Request request = authedRequest(url(path))
                 .post(RequestBody.create(toJson(body), JSON)).build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            return response.isSuccessful();
-        } catch (IOException e) {
-            throw new OpenCodeHttpException("POST failed: " + e.getMessage(), e);
-        }
+        return awaitFuture(executeSuccessAsync(request, null));
     }
 
     /**
@@ -876,11 +905,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     private boolean delete(String path, OpenCodeRequestContext context) {
         Request request = authedRequest(url(path), context).delete().build();
-        try (Response response = httpClient.newCall(request).execute()) {
-            return response.isSuccessful();
-        } catch (IOException e) {
-            throw new OpenCodeHttpException("DELETE failed: " + e.getMessage(), e);
-        }
+        return awaitFuture(executeSuccessAsync(request, null));
     }
 
     private <T> T execute(Request request, Class<T> type) {
@@ -888,26 +913,60 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private <T> T execute(Request request, Class<T> type, HttpCallCancellation cancellation) {
+        return awaitFuture(executeAsync(request, type, cancellation));
+    }
+
+    /** 使用 OkHttp enqueue 异步执行并反序列化对象。 */
+    protected <T> CompletableFuture<T> executeAsync(Request request, Class<T> type,
+                                                    HttpCallCancellation cancellation) {
+        return executeResponseAsync(request, cancellation).thenApply(response -> {
+            if (!response.isSuccessful()) {
+                throw new OpenCodeHttpException(response.getStatusCode(), response.getBody());
+            }
+            try {
+                return objectMapper.readValue(response.getBody(), type);
+            } catch (IOException error) {
+                throw new OpenCodeHttpException("Failed to parse response: " + error.getMessage(), error);
+            }
+        });
+    }
+
+    private CompletableFuture<HttpResponseData> executeResponseAsync(Request request,
+                                                                     HttpCallCancellation cancellation) {
         long requestId = beginTrace(request);
         long startedAt = System.nanoTime();
         Call call = httpClient.newCall(request);
-        AutoCloseable registration = cancellation != null ? cancellation.onCancel(call::cancel) : null;
-        try (Response response = call.execute()) {
-            String respBody = response.body() != null ? response.body().string() : "";
-            logResponse(requestId, request, response.code(), respBody, startedAt);
-            if (!response.isSuccessful()) {
-                throw new OpenCodeHttpException(response.code(), respBody);
+        AutoCloseable registration = Objects.nonNull(cancellation) ? cancellation.onCancel(call::cancel) : null;
+        CompletableFuture<HttpResponseData> result = new CompletableFuture<>();
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call ignored, IOException error) {
+                closeRegistration(registration);
+                logFailure(requestId, request, startedAt, error);
+                result.completeExceptionally(new OpenCodeHttpException(
+                        "HTTP request failed: " + error.getMessage(), error));
             }
-            return objectMapper.readValue(respBody, type);
-        } catch (IOException e) {
-            logFailure(requestId, request, startedAt, e);
-            throw new OpenCodeHttpException("HTTP request failed: " + e.getMessage(), e);
-        } catch (RuntimeException e) {
-            logFailure(requestId, request, startedAt, e);
-            throw e;
-        } finally {
-            closeRegistration(registration);
-        }
+
+            @Override
+            public void onResponse(Call ignored, Response response) {
+                try (Response completed = response) {
+                    String body = Objects.nonNull(completed.body()) ? completed.body().string() : "";
+                    logResponse(requestId, request, completed.code(), body, startedAt);
+                    result.complete(new HttpResponseData(completed.code(), body));
+                } catch (Exception error) {
+                    logFailure(requestId, request, startedAt, error);
+                    result.completeExceptionally(error);
+                } finally {
+                    closeRegistration(registration);
+                }
+            }
+        });
+        result.whenComplete((value, error) -> {
+            if (result.isCancelled()) {
+                call.cancel();
+            }
+        });
+        return result;
     }
 
     private void closeRegistration(AutoCloseable registration) {
@@ -927,25 +986,65 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     private <T> T executeList(Request request, TypeReference<T> typeRef,
                               HttpCallCancellation cancellation) {
-        long requestId = beginTrace(request);
-        long startedAt = System.nanoTime();
-        Call call = httpClient.newCall(request);
-        AutoCloseable registration = cancellation != null ? cancellation.onCancel(call::cancel) : null;
-        try (Response response = call.execute()) {
-            String respBody = response.body() != null ? response.body().string() : "";
-            logResponse(requestId, request, response.code(), respBody, startedAt);
+        return awaitFuture(executeListAsync(request, typeRef, cancellation));
+    }
+
+    private <T> CompletableFuture<T> executeListAsync(Request request, TypeReference<T> typeRef,
+                                                      HttpCallCancellation cancellation) {
+        return executeResponseAsync(request, cancellation).thenApply(response -> {
             if (!response.isSuccessful()) {
-                throw new OpenCodeHttpException(response.code(), respBody);
+                throw new OpenCodeHttpException(response.getStatusCode(), response.getBody());
             }
-            return objectMapper.readValue(respBody, typeRef);
-        } catch (IOException e) {
-            logFailure(requestId, request, startedAt, e);
-            throw new OpenCodeHttpException("HTTP request failed: " + e.getMessage(), e);
-        } catch (RuntimeException e) {
-            logFailure(requestId, request, startedAt, e);
-            throw e;
-        } finally {
-            closeRegistration(registration);
+            try {
+                return objectMapper.readValue(response.getBody(), typeRef);
+            } catch (IOException error) {
+                throw new OpenCodeHttpException("Failed to parse response: " + error.getMessage(), error);
+            }
+        });
+    }
+
+    private CompletableFuture<Boolean> executeSuccessAsync(Request request,
+                                                           HttpCallCancellation cancellation) {
+        return executeResponseAsync(request, cancellation).thenApply(HttpResponseData::isSuccessful);
+    }
+
+    private <T> T awaitFuture(CompletableFuture<T> future) {
+        try {
+            return future.join();
+        } catch (CompletionException error) {
+            Throwable cause = Objects.nonNull(error.getCause()) ? error.getCause() : error;
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            throw new OpenCodeHttpException("Async HTTP request failed: " + cause.getMessage(), cause);
+        }
+    }
+
+    private <T> CompletableFuture<T> failedFuture(Throwable error) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        future.completeExceptionally(error);
+        return future;
+    }
+
+    private static final class HttpResponseData {
+        private final int statusCode;
+        private final String body;
+
+        private HttpResponseData(int statusCode, String body) {
+            this.statusCode = statusCode;
+            this.body = body;
+        }
+
+        private int getStatusCode() {
+            return statusCode;
+        }
+
+        private String getBody() {
+            return body;
+        }
+
+        private boolean isSuccessful() {
+            return statusCode >= 200 && statusCode < 300;
         }
     }
 

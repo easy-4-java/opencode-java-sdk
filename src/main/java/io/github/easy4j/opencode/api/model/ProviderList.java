@@ -9,7 +9,7 @@ import java.util.Map;
 /**
  * Container for the OpenCode provider list, returned by {@code GET /provider}.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see Provider
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listProviders()

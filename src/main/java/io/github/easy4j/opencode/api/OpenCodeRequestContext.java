@@ -9,7 +9,7 @@ import lombok.Value;
  * <p>OpenCode 使用工作目录隔离项目配置、智能体和会话。调用方应传入经过授权和规范化的
  * 绝对目录，SDK 会将其写入 {@code X-OpenCode-Directory} 请求头。</p>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 2.7.x
  */
 @Value

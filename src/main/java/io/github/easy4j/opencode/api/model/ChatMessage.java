@@ -8,7 +8,7 @@ import lombok.Setter;
 /**
  * OpenAI Chat Completions API message object (aligned with OpenClaw/Hermes).
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see ChatRequest
  * @see ChatResponse

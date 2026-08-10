@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  *     <li>Extract bare JSON objects containing {@code task_id}, {@code taskId}, or {@code title}</li>
  * </ol>
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.model.PromptResult
  */

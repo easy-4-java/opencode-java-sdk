@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * Represents a provider authentication method, returned in {@code GET /provider/auth}.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#listProviderAuthMethods()
  */

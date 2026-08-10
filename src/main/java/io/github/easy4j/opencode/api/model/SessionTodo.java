@@ -7,7 +7,7 @@ import lombok.Data;
 /**
  * Represents a session todo item, returned by {@code GET /session/:id/todo}.
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 3.0.0
  * @see io.github.easy4j.opencode.api.OpenCodeHttpClient#getSessionTodo(String)
  */
