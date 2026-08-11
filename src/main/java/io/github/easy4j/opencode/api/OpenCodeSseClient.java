@@ -16,6 +16,7 @@ import okhttp3.Response;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
 import okhttp3.sse.EventSources;
+import okhttp3.extension.logging.HttpLogLevel;
 
 import java.util.Objects;
 import java.util.Set;
@@ -81,11 +82,10 @@ public class OpenCodeSseClient implements AutoCloseable {
         OkHttpClient baseClient = ownsHttpClient
                 ? OpenCodeOkHttpClientFactory.create(config) : httpClient;
         this.httpClient = baseClient.newBuilder().readTimeout(0, TimeUnit.MILLISECONDS).build();
-        log.debug("OpenCode SSE client initialized: baseUrl={}, maxRequests={}, "
-                        + "maxRequestsPerHost={}, eventQueueCapacity={}, reconnectPolicy=none, "
-                        + "detailedLoggingEnabled={}",
+        debug(HttpLogLevel.BASIC, "OpenCode SSE client initialized: baseUrl={}, maxRequests={}, "
+                        + "maxRequestsPerHost={}, eventQueueCapacity={}, reconnectPolicy=none, debugLevel={}",
                 config.getBaseUrl(), config.getMaxRequests(), config.getMaxRequestsPerHost(),
-                config.getStreamEventQueueCapacity(), config.isDetailedLoggingEnabled());
+                config.getStreamEventQueueCapacity(), config.getDebug().getLevel());
     }
 
     /**
@@ -130,7 +130,7 @@ public class OpenCodeSseClient implements AutoCloseable {
         EventSourceListener listener = new EventSourceListener() {
             @Override
             public void onOpen(EventSource eventSource, Response response) {
-                log.info("OpenCode SSE connected: streamType=events, url={}, status={}, elapsedMs={}",
+                debug(HttpLogLevel.BASIC, "OpenCode SSE connected: streamType=events, url={}, status={}, elapsedMs={}",
                         request.url(), response.code(), elapsedMillis(startedAt));
             }
 
@@ -144,10 +144,10 @@ public class OpenCodeSseClient implements AutoCloseable {
                 try {
                     consumer.accept(mapper.readValue(data, SseEvent.class));
                 } catch (Exception error) {
-                    if (config.isDetailedLoggingEnabled()) {
-                        log.debug("Failed to parse OpenCode SSE event: data={}", data, error);
+                    if (config.getDebug().allows(HttpLogLevel.BODY)) {
+                        log.debug("Failed to parse OpenCode SSE event: data={}", truncate(data), error);
                     } else {
-                        log.debug("Failed to parse OpenCode SSE event: dataLength={}, error={}",
+                        debug(HttpLogLevel.BASIC, "Failed to parse OpenCode SSE event: dataLength={}, error={}",
                                 data.length(), error.getMessage());
                     }
                 }
@@ -156,7 +156,7 @@ public class OpenCodeSseClient implements AutoCloseable {
             @Override
             public void onClosed(EventSource eventSource) {
                 closeSubscription(subscriptionRef);
-                log.info("OpenCode SSE closed: streamType=events, url={}", request.url());
+                debug(HttpLogLevel.BASIC, "OpenCode SSE closed: streamType=events, url={}", request.url());
             }
 
             @Override
@@ -334,6 +334,17 @@ public class OpenCodeSseClient implements AutoCloseable {
 
     private long elapsedMillis(long startedAt) {
         return (System.nanoTime() - startedAt) / 1_000_000L;
+    }
+
+    private void debug(HttpLogLevel level, String message, Object... arguments) {
+        if (config.getDebug().allows(level)) {
+            log.debug(message, arguments);
+        }
+    }
+
+    private String truncate(String value) {
+        int limit = config.getDebug().resolveMaxContentLength();
+        return value.length() <= limit ? value : value.substring(0, limit) + "...<truncated>";
     }
 
     /**

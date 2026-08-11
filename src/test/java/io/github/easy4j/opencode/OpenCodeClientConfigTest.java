@@ -14,6 +14,8 @@ class OpenCodeClientConfigTest {
         OpenCodeClientConfig config = new OpenCodeClientConfig();
         assertNotNull(config.getHttp());
         assertNotNull(config.getCli());
+        assertSame(config.getDebug(), config.getHttp().getDebug());
+        assertSame(config.getDebug(), config.getCli().getDebug());
         assertTrue(config.getHttp().isEnabled());
         assertTrue(config.getCli().isEnabled());
     }

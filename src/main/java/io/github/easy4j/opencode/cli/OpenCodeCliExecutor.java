@@ -1,6 +1,7 @@
 package io.github.easy4j.opencode.cli;
 
 import io.github.easy4j.opencode.OpenCodeCliConfig;
+import okhttp3.extension.logging.HttpLogLevel;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
 import org.apache.commons.exec.ExecuteWatchdog;
@@ -76,7 +77,13 @@ public class OpenCodeCliExecutor {
             int exitCode = executor.execute(cmd);
             String out = stdout.toString().trim();
             String err = stderr.toString().trim();
-            log.debug("opencode CLI executed: exitCode={}, stdout={}, stderr={}", exitCode, out, err);
+            if (config.getDebug().allows(HttpLogLevel.BASIC)) {
+                log.debug("OpenCode CLI executed: exitCode={}, stdoutLength={}, stderrLength={}",
+                        exitCode, out.length(), err.length());
+            }
+            if (config.getDebug().allows(HttpLogLevel.BODY)) {
+                log.debug("OpenCode CLI output: stdout={}, stderr={}", truncate(out), truncate(err));
+            }
             return new OpenCodeCliResult(exitCode, out, err);
         } catch (IOException e) {
             return new OpenCodeCliResult(-1, "", e.getMessage());
@@ -99,7 +106,7 @@ public class OpenCodeCliExecutor {
     }
 
     private static OpenCodeCliConfig copyForProbe(OpenCodeCliConfig source) {
-        OpenCodeCliConfig copy = new OpenCodeCliConfig();
+        OpenCodeCliConfig copy = new OpenCodeCliConfig(source.getDebug());
         copy.setExecutable(source.getExecutable());
         copy.setWorkingDirectory(source.getWorkingDirectory());
         copy.setMaxConcurrentExecutions(source.getMaxConcurrentExecutions());
@@ -110,6 +117,11 @@ public class OpenCodeCliExecutor {
         copy.setTimeout(probeSec);
         copy.setProbeTimeoutSeconds(probeSec);
         return copy;
+    }
+
+    private String truncate(String content) {
+        int maxLength = config.getDebug().resolveMaxContentLength();
+        return content.length() <= maxLength ? content : content.substring(0, maxLength) + "...<truncated>";
     }
 
     private File resolveWorkingDirectory() {

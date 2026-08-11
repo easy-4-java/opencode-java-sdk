@@ -2,6 +2,8 @@ package io.github.easy4j.opencode;
 
 import lombok.Data;
 
+import java.util.Objects;
+
 /**
  * Configuration for the local OpenCode CLI subsystem.
  * <p>Covers local {@code opencode} executable path, timeouts, working directory,
@@ -15,6 +17,23 @@ import lombok.Data;
  */
 @Data
 public class OpenCodeCliConfig {
+
+    /** CLI 与 HTTP/SSE 通道共享的调试策略。 */
+    private final OpenCodeDebugConfig debug;
+
+    /** 使用独立的默认调试策略创建配置。 */
+    public OpenCodeCliConfig() {
+        this(new OpenCodeDebugConfig());
+    }
+
+    /**
+     * 使用指定调试策略创建配置。
+     *
+     * @param debug 客户端共享调试策略
+     */
+    public OpenCodeCliConfig(OpenCodeDebugConfig debug) {
+        this.debug = Objects.requireNonNull(debug, "debug");
+    }
 
     /**
      * 是否启用本地 CLI 子系统。

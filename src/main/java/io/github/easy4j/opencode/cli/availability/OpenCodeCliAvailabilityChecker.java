@@ -136,7 +136,7 @@ public class OpenCodeCliAvailabilityChecker {
     }
 
     private static OpenCodeCliConfig copyForProbe(OpenCodeCliConfig source) {
-        OpenCodeCliConfig copy = new OpenCodeCliConfig();
+        OpenCodeCliConfig copy = new OpenCodeCliConfig(source.getDebug());
         copy.setExecutable(source.getExecutable());
         copy.setWorkingDirectory(source.getWorkingDirectory());
         copy.setMaxConcurrentExecutions(source.getMaxConcurrentExecutions());
