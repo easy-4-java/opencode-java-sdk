@@ -17,13 +17,16 @@ import lombok.Data;
 @Data
 public class OpenCodeClientConfig {
 
+    /** 客户端所有通信通道共享的调试配置。 */
+    private final OpenCodeDebugConfig debug = new OpenCodeDebugConfig();
+
     /**
      * HTTP/Server 相关配置
      */
-    private final OpenCodeHttpClientConfig http = new OpenCodeHttpClientConfig();
+    private final OpenCodeHttpClientConfig http = new OpenCodeHttpClientConfig(debug);
 
     /**
      * 本地 CLI 相关配置
      */
-    private final OpenCodeCliConfig cli = new OpenCodeCliConfig();
+    private final OpenCodeCliConfig cli = new OpenCodeCliConfig(debug);
 }

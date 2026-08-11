@@ -10,6 +10,7 @@ import io.github.easy4j.opencode.api.model.*;
 import io.github.easy4j.opencode.exception.OpenCodeHttpException;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
+import okhttp3.extension.logging.HttpLogLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,11 +79,13 @@ public class OpenCodeHttpClient implements AutoCloseable {
         this.objectMapper = Objects.isNull(objectMapper) ? new ObjectMapper()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false): objectMapper;
         this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
-        log.debug("OpenCode HTTP client initialized: baseUrl={}, connectTimeoutMs={}, readTimeoutMs={}, "
-                        + "callTimeoutMs={}, retryOnConnectionFailure={}, detailedLoggingEnabled={}",
-                config.getBaseUrl(), config.getConnectTimeoutMillis(), config.getReadTimeoutMillis(),
-                config.getCallTimeoutMillis(), config.isRetryOnConnectionFailure(),
-                config.isDetailedLoggingEnabled());
+        if (allows(HttpLogLevel.BASIC)) {
+            log.debug("OpenCode HTTP client initialized: baseUrl={}, connectTimeoutMs={}, readTimeoutMs={}, "
+                            + "callTimeoutMs={}, retryOnConnectionFailure={}, debugLevel={}",
+                    config.getBaseUrl(), config.getConnectTimeoutMillis(), config.getReadTimeoutMillis(),
+                    config.getCallTimeoutMillis(), config.isRetryOnConnectionFailure(),
+                    config.getDebug().getLevel());
+        }
     }
 
     private static OkHttpClient buildOkHttpClient(OpenCodeHttpClientConfig config) {
@@ -443,8 +446,10 @@ public class OpenCodeHttpClient implements AutoCloseable {
                             }
                             throw new CompletionException(cause);
                         }
-                        log.debug("findSessionByTitle failed, sessionKey={}, error={}",
-                                sessionKey, error.getMessage());
+                        if (allows(HttpLogLevel.BASIC)) {
+                            log.debug("findSessionByTitle failed, sessionKey={}, error={}",
+                                    sessionKey, error.getMessage());
+                        }
                         return Optional.<Session>empty();
                     }
                     return sessions.stream().filter(session -> Objects.equals(sessionKey, session.getTitle()))
@@ -1448,7 +1453,9 @@ public class OpenCodeHttpClient implements AutoCloseable {
         try {
             registration.close();
         } catch (Exception error) {
-            log.debug("Failed to unregister HTTP cancellation callback: {}", error.getMessage());
+            if (allows(HttpLogLevel.BASIC)) {
+                log.debug("Failed to unregister HTTP cancellation callback: {}", error.getMessage());
+            }
         }
     }
 
@@ -1543,20 +1550,25 @@ public class OpenCodeHttpClient implements AutoCloseable {
 
     private long beginTrace(Request request) {
         long requestId = REQUEST_SEQUENCE.incrementAndGet();
-        log.debug("HTTP request started: requestId={}, method={}, url={}",
-                requestId, request.method(), request.url());
-        if (config.isDetailedLoggingEnabled()) {
-            // 详细日志默认关闭；开启后仍对认证头、token 和 key 脱敏，并限制正文长度。
-            log.debug("HTTP request details: requestId={}, headers={}, body={}", requestId,
-                    redactHeaders(request.headers()), requestBody(request));
+        if (allows(HttpLogLevel.BASIC)) {
+            log.debug("HTTP request started: requestId={}, method={}, url={}",
+                    requestId, request.method(), request.url());
+        }
+        if (allows(HttpLogLevel.HEADERS)) {
+            log.debug("HTTP request headers: requestId={}, headers={}", requestId, redactHeaders(request.headers()));
+        }
+        if (allows(HttpLogLevel.BODY)) {
+            log.debug("HTTP request body: requestId={}, body={}", requestId, requestBody(request));
         }
         return requestId;
     }
 
     private void logResponse(long requestId, Request request, int status, String body, long startedAt) {
-        log.debug("HTTP request completed: requestId={}, method={}, url={}, status={}, bodyLength={}, elapsedMs={}",
-                requestId, request.method(), request.url(), status, body.length(), elapsedMillis(startedAt));
-        if (config.isDetailedLoggingEnabled()) {
+        if (allows(HttpLogLevel.BASIC)) {
+            log.debug("HTTP request completed: requestId={}, method={}, url={}, status={}, bodyLength={}, elapsedMs={}",
+                    requestId, request.method(), request.url(), status, body.length(), elapsedMillis(startedAt));
+        }
+        if (allows(HttpLogLevel.BODY)) {
             log.debug("HTTP response body: requestId={}, body={}", requestId, truncate(body));
         }
     }
@@ -1584,8 +1596,12 @@ public class OpenCodeHttpClient implements AutoCloseable {
     }
 
     private String truncate(String value) {
-        int limit = Math.max(0, config.getMaxLoggedBodyLength());
+        int limit = config.getDebug().resolveMaxContentLength();
         return value.length() <= limit ? value : value.substring(0, limit) + "...<truncated>";
+    }
+
+    private boolean allows(HttpLogLevel level) {
+        return config.getDebug().allows(level);
     }
 
     private Headers redactHeaders(Headers headers) {
@@ -1593,7 +1609,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
         for (String name : headers.names()) {
             String lowerName = name.toLowerCase();
             if ("authorization".equals(lowerName) || lowerName.contains("token") || lowerName.contains("key")) {
-                safe.set(name, "██");
+                safe.set(name, "<redacted>");
             }
         }
         return safe.build();
