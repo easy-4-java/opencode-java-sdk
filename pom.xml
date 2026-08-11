@@ -66,6 +66,7 @@
         <junit.version>4.13.2</junit.version>
         <lombok.version>1.18.46</lombok.version>
         <okhttp.version>4.12.0</okhttp.version>
+        <okhttp3-extension.version>3.0.x.20260630-SNAPSHOT</okhttp3-extension.version>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <slf4j.version>2.0.18</slf4j.version>
         <!-- Maven Plugin versions -->
@@ -89,7 +90,22 @@
     
     <dependencyManagement>
         <dependencies>
-            
+            <dependency>
+                <groupId>io.github.easy4j</groupId>
+                <artifactId>okhttp3-extension</artifactId>
+                <version>${okhttp3-extension.version}</version>
+                <exclusions>
+                    <exclusion>
+                        <groupId>com.squareup.okhttp3</groupId>
+                        <artifactId>okhttp</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>com.squareup.okhttp3</groupId>
+                        <artifactId>okhttp-jvm</artifactId>
+                    </exclusion>
+                </exclusions>
+            </dependency>
+            <!-- For Jackson BOM -->
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
@@ -141,11 +157,6 @@
             <version>${okhttp.version}</version></dependency>
             
             <dependency>
-                <groupId>com.fasterxml.jackson.core</groupId>
-                <artifactId>jackson-databind</artifactId>
-            <version>2.22.0</version></dependency>
-            
-            <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>mockwebserver</artifactId>
                 <scope>test</scope>
@@ -155,7 +166,11 @@
 
     
     <dependencies>
-        
+        <dependency>
+            <groupId>io.github.easy4j</groupId>
+            <artifactId>okhttp3-extension</artifactId>
+        </dependency>
+        <!-- For OkHttp -->
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>

@@ -2,6 +2,8 @@ package io.github.easy4j.opencode;
 
 import lombok.Data;
 
+import java.util.Objects;
+
 /**
  * Configuration for the OpenCode HTTP Server client.
  * <p>Covers server base URL, Basic Auth, TLS, HTTP timeouts, connection pool sizing,
@@ -14,6 +16,23 @@ import lombok.Data;
  */
 @Data
 public class OpenCodeHttpClientConfig {
+
+    /** HTTP 与 SSE 通道共享的调试配置。 */
+    private final OpenCodeDebugConfig debug;
+
+    /** 使用默认关闭的调试配置创建 HTTP 配置。 */
+    public OpenCodeHttpClientConfig() {
+        this(new OpenCodeDebugConfig());
+    }
+
+    /**
+     * 使用客户端级共享调试配置创建 HTTP 配置。
+     *
+     * @param debug 客户端级调试配置
+     */
+    public OpenCodeHttpClientConfig(OpenCodeDebugConfig debug) {
+        this.debug = Objects.requireNonNull(debug, "debug");
+    }
 
     /**
      * 对话响应模式，默认保持兼容的完整响应模式。
@@ -123,17 +142,6 @@ public class OpenCodeHttpClientConfig {
      * 遇到失效连接等传输故障时是否允许 OkHttp 自动恢复。
      */
     private boolean retryOnConnectionFailure = true;
-
-    /**
-     * 是否输出请求头、请求体及响应体等详细诊断信息。
-     * <p>默认关闭；基础请求生命周期仍使用 DEBUG 日志。</p>
-     */
-    private boolean detailedLoggingEnabled = false;
-
-    /**
-     * 详细日志中请求体、响应体的最大字符数。
-     */
-    private int maxLoggedBodyLength = 2_000;
 
     /**
      * 是否校验 HTTPS 证书；为 false 时关闭校验（仅建议开发环境）。
