@@ -61,12 +61,12 @@
         <!-- Dependency versions -->
         <commons-exec.version>1.6.0</commons-exec.version>
         <commons-lang.version>2.6</commons-lang.version>
-        <jackson.version>2.17.2</jackson.version>
+        <jackson.version>2.18.9</jackson.version>
         <junit-jupiter.version>6.1.0</junit-jupiter.version>
         <junit.version>4.13.2</junit.version>
         <lombok.version>1.18.46</lombok.version>
         <okhttp.version>4.12.0</okhttp.version>
-        <okhttp3-extension.version>3.0.x.20260730-SNAPSHOT</okhttp3-extension.version>
+        <okhttp3-extension.version>3.0.x.20260730</okhttp3-extension.version>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <slf4j.version>2.0.18</slf4j.version>
         <!-- Maven Plugin versions -->
