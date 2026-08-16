@@ -1,6 +1,7 @@
 package io.github.easy4j.opencode;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.easy4j.opencode.api.OpenCodeHttpClient;
 import io.github.easy4j.opencode.api.OpenCodeSseClient;
 import io.github.easy4j.opencode.cli.OpenCodeCli;
@@ -42,7 +43,7 @@ class OpenCodeClientTest {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
         httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
         assertTrue(client.isHttpEnabled());
@@ -68,7 +69,7 @@ class OpenCodeClientTest {
         OpenCodeHttpClientConfig httpConfig = new OpenCodeHttpClientConfig();
         httpConfig.setBaseUrl(server.url("/").toString().replaceAll("/$", ""));
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeCliExecutor executor = new OpenCodeCliExecutor(config.getCli());
         OpenCodeCli cli = new OpenCodeCli(executor);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, cli);
@@ -128,7 +129,7 @@ class OpenCodeClientTest {
                 .setBody("{\"healthy\":true,\"version\":\"1.0.0\"}"));
 
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
         var health = client.health();
@@ -146,7 +147,7 @@ class OpenCodeClientTest {
                 .setBody("[{\"id\":\"sess-1\",\"title\":\"test\"}]"));
 
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
         var sessions = client.listSessions();
@@ -164,7 +165,7 @@ class OpenCodeClientTest {
                 .setBody("[{\"name\":\"coder\"}]"));
 
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
         var agents = client.listAgents();
@@ -182,7 +183,7 @@ class OpenCodeClientTest {
                 .setBody("{\"theme\":\"dark\"}"));
 
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
         var codeConfig = client.getOpenCodeConfig();
@@ -200,7 +201,7 @@ class OpenCodeClientTest {
                 .setBody("{}"));
 
         OpenCodeClientConfig config = new OpenCodeClientConfig();
-        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new ObjectMapper(), null);
+        OpenCodeHttpClient httpClient = new OpenCodeHttpClient(httpConfig, new JsonMapper(), null);
         OpenCodeClient client = new OpenCodeClient(config, httpClient, null, null);
 
         assertTrue(client.abort("sess-1"));

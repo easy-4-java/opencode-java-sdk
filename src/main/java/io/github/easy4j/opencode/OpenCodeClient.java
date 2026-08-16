@@ -1,6 +1,7 @@
 package io.github.easy4j.opencode;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.easy4j.opencode.api.mapper.ChatMessageMapper;
 import io.github.easy4j.opencode.api.model.*;
 import io.github.easy4j.opencode.cli.OpenCodeCli;
@@ -88,7 +89,7 @@ public class OpenCodeClient implements AutoCloseable {
      * @throws IllegalStateException 启用启动检查和快速失败后，对应子系统不可用
      */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig) {
-        this(httpConfig, new OpenCodeCliConfig(), new ObjectMapper(), null);
+        this(httpConfig, new OpenCodeCliConfig(), new JsonMapper(), null);
     }
 
     /**
@@ -110,7 +111,7 @@ public class OpenCodeClient implements AutoCloseable {
      * @throws IllegalStateException 启用启动检查和快速失败后，对应子系统不可用
      */
     public OpenCodeClient(OpenCodeCliConfig cliConfig) {
-        this(new OpenCodeHttpClientConfig(), cliConfig, new ObjectMapper(), null);
+        this(new OpenCodeHttpClientConfig(), cliConfig, new JsonMapper(), null);
     }
 
     /**
@@ -133,7 +134,7 @@ public class OpenCodeClient implements AutoCloseable {
      * @throws IllegalStateException 启用启动检查和快速失败后，对应子系统不可用
      */
     public OpenCodeClient(OpenCodeHttpClientConfig httpConfig, OpenCodeCliConfig cliConfig) {
-        this(httpConfig, cliConfig, new ObjectMapper(), null);
+        this(httpConfig, cliConfig, new JsonMapper(), null);
     }
 
     /**
@@ -199,7 +200,7 @@ public class OpenCodeClient implements AutoCloseable {
      * @throws IllegalStateException 启用启动检查和快速失败后，对应子系统不可用
      */
     public OpenCodeClient(OpenCodeClientConfig config) {
-        this(config, new ObjectMapper(), null);
+        this(config, new JsonMapper(), null);
     }
 
     /**

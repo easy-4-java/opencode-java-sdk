@@ -1,6 +1,7 @@
 package io.github.easy4j.opencode.api;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.easy4j.opencode.HttpCallCancellation;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
 import io.github.easy4j.opencode.api.mapper.ChatMessageMapper;
@@ -56,7 +57,7 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
      * @param config 客户端配置；不得为 {@code null}
      */
     public OpenCodeChatClient(OpenCodeHttpClientConfig config) {
-        this(config, new ObjectMapper(), null);
+        this(config, new JsonMapper(), null);
     }
 
     /**

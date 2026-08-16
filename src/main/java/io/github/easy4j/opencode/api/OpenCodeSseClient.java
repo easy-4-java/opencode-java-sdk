@@ -1,7 +1,8 @@
 package io.github.easy4j.opencode.api;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
 import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
 import io.github.easy4j.opencode.api.event.EventHandler;
@@ -63,7 +64,7 @@ public class OpenCodeSseClient implements AutoCloseable {
      * @param config 客户端配置；不得为 {@code null}
      */
     public OpenCodeSseClient(OpenCodeHttpClientConfig config) {
-        this(config, new ObjectMapper(), null);
+        this(config, new JsonMapper(), null);
     }
 
     /**
@@ -76,8 +77,8 @@ public class OpenCodeSseClient implements AutoCloseable {
     public OpenCodeSseClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper,
                              OkHttpClient httpClient) {
         this.config = Objects.requireNonNull(config, "config");
-        this.mapper = Objects.isNull(objectMapper) ? new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false) : objectMapper;
+        this.mapper = Objects.isNull(objectMapper) ? JsonMapper.builder()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build() : objectMapper;
         this.ownsHttpClient = Objects.isNull(httpClient);
         OkHttpClient baseClient = ownsHttpClient
                 ? OpenCodeOkHttpClientFactory.create(config) : httpClient;

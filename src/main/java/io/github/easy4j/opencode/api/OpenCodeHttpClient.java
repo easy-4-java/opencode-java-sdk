@@ -1,8 +1,10 @@
 package io.github.easy4j.opencode.api;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import io.github.easy4j.opencode.OpenCodeHttpClientConfig;
 import io.github.easy4j.opencode.HttpCallCancellation;
 import io.github.easy4j.opencode.OpenCodeOkHttpClientFactory;
@@ -76,8 +78,8 @@ public class OpenCodeHttpClient implements AutoCloseable {
      */
     public OpenCodeHttpClient(OpenCodeHttpClientConfig config, ObjectMapper objectMapper, OkHttpClient httpClient) {
         this.config = Objects.requireNonNull(config, "config");
-        this.objectMapper = Objects.isNull(objectMapper) ? new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false): objectMapper;
+        this.objectMapper = Objects.isNull(objectMapper) ? JsonMapper.builder()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build(): objectMapper;
         this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
         if (allows(HttpLogLevel.BASIC)) {
             log.debug("OpenCode HTTP client initialized: baseUrl={}, connectTimeoutMs={}, readTimeoutMs={}, "
@@ -485,7 +487,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
             Request httpReq = authedRequest(url("/session/" + sessionId + "/prompt_async"), context)
                     .post(body).build();
             return executeSuccessAsync(httpReq, null);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             return failedFuture(new OpenCodeHttpException("promptAsync failed: " + e.getMessage(), e));
         }
     }
@@ -1397,7 +1399,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
             }
             try {
                 return objectMapper.readValue(response.getBody(), type);
-            } catch (IOException error) {
+            } catch (JacksonException error) {
                 throw new OpenCodeHttpException("Failed to parse response: " + error.getMessage(), error);
             }
         });
@@ -1476,7 +1478,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
             }
             try {
                 return objectMapper.readValue(response.getBody(), typeRef);
-            } catch (IOException error) {
+            } catch (JacksonException error) {
                 throw new OpenCodeHttpException("Failed to parse response: " + error.getMessage(), error);
             }
         });
@@ -1618,7 +1620,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
     private String toJson(Object body) {
         try {
             return objectMapper.writeValueAsString(body);
-        } catch (IOException e) {
+        } catch (JacksonException e) {
             throw new OpenCodeHttpException("Failed to serialize request body: " + e.getMessage(), e);
         }
     }
