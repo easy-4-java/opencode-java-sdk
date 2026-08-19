@@ -139,18 +139,21 @@
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp</artifactId>
-            <version>${okhttp.version}</version></dependency>
+            <version>${okhttp.version}</version>
+            </dependency>
             <!-- For OkHttp -->
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>okhttp-sse</artifactId>
-            <version>${okhttp.version}</version></dependency>
+            <version>${okhttp.version}</version>
+            </dependency>
             <!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/mockwebserver -->
             <dependency>
                 <groupId>com.squareup.okhttp3</groupId>
                 <artifactId>mockwebserver</artifactId>
                 <scope>test</scope>
-            <version>${okhttp.version}</version></dependency>
+            <version>${okhttp.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
