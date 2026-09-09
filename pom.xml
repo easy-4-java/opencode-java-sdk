@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.1.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.1.0 http://maven.apache.org/xsd/maven-4.1.0.xsd">
     <modelVersion>4.1.0</modelVersion>
     <groupId>io.github.easy4j</groupId>
     <artifactId>opencode-java-sdk</artifactId>
@@ -43,7 +43,7 @@
         
         <commons-exec.version>1.4.0</commons-exec.version>
         <commons-lang.version>2.6</commons-lang.version>
-        <jackson-bom.version>2.22.1</jackson-bom.version>
+        <jackson-bom.version>3.2.1</jackson-bom.version>
         <junit-jupiter.version>6.1.0</junit-jupiter.version>
         <junit.version>4.13.2</junit.version>
         <lombok.version>1.18.46</lombok.version>
@@ -71,7 +71,7 @@
         <dependencies>
             
             <dependency>
-                <groupId>com.fasterxml.jackson</groupId>
+                <groupId>tools.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
                 <version>${jackson-bom.version}</version>
                 <type>pom</type>
@@ -152,7 +152,7 @@
         </dependency>
         
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
+            <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
         
