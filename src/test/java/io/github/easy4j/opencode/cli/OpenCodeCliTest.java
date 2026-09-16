@@ -3,6 +3,8 @@ package io.github.easy4j.opencode.cli;
 import io.github.easy4j.opencode.OpenCodeCliConfig;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -48,6 +50,126 @@ class OpenCodeCliTest {
         OpenCodeCli cli = createCli();
         OpenCodeCliResult result = cli.run("hello");
         assertNotNull(result);
+    }
+
+    @Test
+    void shouldRunWithOptionsBuilder() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.run(new OpenCodeRunOptions("修复失败的测试")
+                .model("anthropic/claude-sonnet-4-5")
+                .agent("build")
+                .format("json")
+                .title("对齐任务")
+                .thinking(true));
+        assertNotNull(result);
+        assertTrue(result.getStdout().contains("--model anthropic/claude-sonnet-4-5"));
+        assertTrue(result.getStdout().contains("--agent build"));
+        assertTrue(result.getStdout().contains("--format json"));
+        assertTrue(result.getStdout().contains("--title 对齐任务"));
+        assertTrue(result.getStdout().contains("--thinking"));
+        assertTrue(result.getStdout().contains("修复失败的测试"), "多词 prompt 必须原样到达（无内嵌引号）");
+    }
+
+    @Test
+    void shouldRunOptionsSupportAttachAndVariant() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.run(new OpenCodeRunOptions("hi")
+                .attach("http://localhost:4096")
+                .variant("high")
+                .dir("/tmp/work")
+                .files(Arrays.asList("a.md", "b.md"))
+                .share("org")
+                .fork(true));
+        String out = result.getStdout();
+        assertTrue(out.contains("--attach http://localhost:4096"));
+        assertTrue(out.contains("--variant high"));
+        assertTrue(out.contains("--dir /tmp/work"));
+        assertTrue(out.contains("--file a.md"));
+        assertTrue(out.contains("--file b.md"));
+        assertTrue(out.contains("--share org"));
+        assertTrue(out.contains("--fork"));
+    }
+
+    @Test
+    void shouldLaunchTuiWithOptions() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.tui(new OpenCodeTuiOptions()
+                .project("/tmp/proj")
+                .continueLast(true)
+                .fork(true)
+                .prompt("总结进度")
+                .model("anthropic/claude-sonnet-4-5")
+                .port(4096));
+        String out = result.getStdout();
+        assertTrue(out.contains("/tmp/proj"));
+        assertTrue(out.contains("--continue"));
+        assertTrue(out.contains("--fork"));
+        assertTrue(out.contains("--prompt 总结进度"));
+        assertTrue(out.contains("--port 4096"));
+    }
+
+    @Test
+    void shouldListMcpAuthStatuses() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.mcpAuthList();
+        assertTrue(result.getStdout().contains("mcp auth list"));
+    }
+
+    @Test
+    void shouldServeWithMdnsAndCors() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.serve(4096, "0.0.0.0", true,
+                java.util.Arrays.asList("https://a.example", "https://b.example"));
+        String out = result.getStdout();
+        assertTrue(out.contains("serve"));
+        assertTrue(out.contains("--port 4096"));
+        assertTrue(out.contains("--hostname 0.0.0.0"));
+        assertTrue(out.contains("--mdns"));
+        assertTrue(out.contains("--cors https://a.example"));
+        assertTrue(out.contains("--cors https://b.example"));
+    }
+
+    @Test
+    void shouldWebWithMdnsDomainAndCors() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.web(null, null, true, "myproject.local",
+                java.util.Arrays.asList("https://front.example"));
+        String out = result.getStdout();
+        assertTrue(out.contains("web"));
+        assertTrue(out.contains("--mdns"));
+        assertTrue(out.contains("--mdns-domain myproject.local"));
+        assertTrue(out.contains("--cors https://front.example"));
+    }
+
+    @Test
+    void shouldAcpWithPortAndHostname() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.acp("/tmp/work", 8080, "127.0.0.1");
+        String out = result.getStdout();
+        assertTrue(out.contains("--cwd /tmp/work"));
+        assertTrue(out.contains("--port 8080"));
+        assertTrue(out.contains("--hostname 127.0.0.1"));
+    }
+
+    @Test
+    void shouldAttachWithContinueAndFork() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.attach("http://localhost:4096", null, "sess-1",
+                "opencode", "secret", true, true);
+        String out = result.getStdout();
+        assertTrue(out.contains("attach http://localhost:4096"));
+        assertTrue(out.contains("--session sess-1"));
+        assertTrue(out.contains("--continue"));
+        assertTrue(out.contains("--fork"));
+        assertTrue(out.contains("--password secret"), "密码旗标必须按文档传递（echo 替身负责回显）");
+    }
+
+    @Test
+    void shouldExecuteRawArguments() {
+        OpenCodeCli cli = createCli();
+        OpenCodeCliResult result = cli.raw("--print-logs", "models");
+        assertTrue(result.getStdout().contains("--print-logs"));
+        assertTrue(result.getStdout().contains("models"));
     }
 
     @Test

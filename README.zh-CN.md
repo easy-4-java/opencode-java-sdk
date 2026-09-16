@@ -2,12 +2,12 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-[![Java](https://img.shields.io/badge/Java-17-orange)](https://github.com/easy-4-java/opencode-java-sdk) [![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
+[![Java](https://img.shields.io/badge/Java-21-orange)](https://github.com/easy-4-java/opencode-java-sdk) [![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
 
 纯 Java 库（无 Spring）：通过 HTTP REST API、SSE 事件流与本地 CLI 与 OpenCode Server 交互
 
-> **当前分支**：`feature/2.0.x`
-> **版本**：`2.0.x.x.20260630-SNAPSHOT`
+> **当前分支**：`feature/3.0.x`
+> **版本**：`3.0.x.x.20260630-SNAPSHOT`
 > **JDK 基线**：8
 > **项目状态**：稳定（1.0.x 线）。尚未发布 Maven Central；制品通过 Aliyun Maven 仓库与 GitHub Releases 分发。
 
@@ -68,14 +68,15 @@
 | 其他 API | 可用 | commands、skills、formatters、LSPs、MCP servers、path、VCS、instance dispose、global upgrade |
 | Question / permission API | 可用 | 待回答问题与权限、reply / reject |
 | SSE 事件流 | 可用 | `subscribe`、`subscribeQueue`、`subscribeSession`、`subscribeEventTypes`、类型化 `EventHandler` |
-| CLI 封装 | 可用 | `run`、`runJson`、sessions、agents、models、providers/auth、MCP、stats、export / import、db、debug、serve / web / attach、github、plugin、console |
+| CLI 封装 | 可用 | `run`、`runJson`、`run(RunOptions)` 全旗标、`tui(TuiOptions)`、sessions、agents、models、providers/auth、MCP（含 `mcp auth list`）、stats、export / import、db、debug、serve / web / attach 全旗标（`--mdns/--cors/--mdns-domain`）、github、plugin、console、`raw` 逃生通道 |
+| MCP 配置模型 | 可用 | `McpServerConfig`（`local` stdio / `remote` HTTP-SSE，environment/headers/oauth/timeout/enabled），接入 `OpenCodeConfig.mcp` |
 
 <a id="3-requirements--compatibility"></a>
 ## 3. 运行要求与兼容性
 
 | 组件 | 版本 | 说明 |
 |---|---:|---|
-| JDK | 17+ | 1.0.x 线基线 |
+| JDK | 21+ | 1.0.x 线基线 |
 | Maven | 3.0+ | Enforcer 下限 |
 | OkHttp / okhttp-sse | 4.12.0 | HTTP 与 SSE 传输 |
 | Jackson databind | 2.17.x | JSON |
@@ -86,7 +87,7 @@
 
 | 版本线 | 分支 | JDK | 版本模式 | 用途 |
 |---|---|---:|---|---|
-| 1.0.x | `feature/2.0.x`（当前分支） | 8 | `1.0.x.*` | 存量项目、Boot 2.x Starter 线 |
+| 1.0.x | `feature/3.0.x`（当前分支） | 8 | `1.0.x.*` | 存量项目、Boot 2.x Starter 线 |
 | 2.0.x | `feature/2.0.x` | 17 | `2.0.x.*` | 主流线（JDK 17） |
 | 3.0.x | `feature/3.0.x` | 21 | `3.0.x.*` | 新项目 |
 
@@ -135,14 +136,14 @@ Maven：
 <dependency>
     <groupId>io.github.easy4j</groupId>
     <artifactId>opencode-java-sdk</artifactId>
-    <version>2.0.x.x.20260630-SNAPSHOT</version>
+    <version>3.0.x.x.20260630-SNAPSHOT</version>
 </dependency>
 ```
 
 Gradle：
 
 ```groovy
-implementation 'io.github.easy4j:opencode-java-sdk:2.0.x.x.20260630-SNAPSHOT'
+implementation 'io.github.easy4j:opencode-java-sdk:3.0.x.x.20260630-SNAPSHOT'
 ```
 
 快照版本需要启用对应快照仓库（`pom.xml` 中 `distributionManagement` 指向 Aliyun Maven 仓库）。
@@ -241,6 +242,17 @@ OpenCodeCliResult result = cli.run("Explain async/await in JavaScript");
 System.out.println(result.getStdout());
 
 cli.run("Hello", "plan", "anthropic/claude-sonnet-4-5");  // agent + model
+
+// 全旗标 run（--command/--continue/--fork/--share/--file/--title/--attach/
+// --variant/--thinking/--dir/--port 均可组合）
+cli.run(new OpenCodeRunOptions("修复失败的测试")
+        .model("anthropic/claude-sonnet-4-5")
+        .format("json")
+        .attach("http://localhost:4096")
+        .variant("high"));
+
+// 交互式 TUI
+cli.tui(new OpenCodeTuiOptions().project(".").continueLast(true).fork(true));
 cli.sessionList();
 cli.serve(4096, "127.0.0.1");                             // opencode serve --port 4096 --hostname 127.0.0.1
 cli.upgrade("v1.18.0", "npm");

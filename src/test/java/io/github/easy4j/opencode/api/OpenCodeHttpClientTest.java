@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link OpenCodeHttpClient} 工作区路由测试 + 新增端点路径覆盖。
  *
- * @author [@Loong Wan](https://github.com/loong10k)
+ * @author <a href="https://github.com/loong10k">Loong Wan</a>
  * @since 2.7.x
  */
 class OpenCodeHttpClientTest {
