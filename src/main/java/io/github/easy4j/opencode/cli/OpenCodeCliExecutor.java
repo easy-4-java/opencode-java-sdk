@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -77,8 +78,10 @@ public class OpenCodeCliExecutor {
 
         try {
             int exitCode = executor.execute(cmd);
-            String out = stdout.toString().trim();
-            String err = stderr.toString().trim();
+            // 显式 UTF-8 解码：toString() 走平台默认字符集，GBK 默认字符集的
+            // Windows 上会把 opencode 的 UTF-8 输出解成乱码。
+            String out = decodeUtf8(stdout);
+            String err = decodeUtf8(stderr);
             if (config.getDebug().allows(HttpLogLevel.BASIC)) {
                 log.debug("OpenCode CLI executed: exitCode={}, stdoutLength={}, stderrLength={}",
                         exitCode, out.length(), err.length());
@@ -89,6 +92,22 @@ public class OpenCodeCliExecutor {
             return new OpenCodeCliResult(exitCode, out, err);
         } catch (IOException e) {
             return new OpenCodeCliResult(-1, "", e.getMessage());
+        }
+    }
+
+    /**
+     * 按 UTF-8 解码缓冲区内容。{@code ByteArrayOutputStream.toString(Charset)}
+     * 是 Java 10+ API，JDK 8 线退化为 {@code toString("UTF-8")}；UTF-8 在所有
+     * JVM 上保证存在，{@code UnsupportedEncodingException} 分支实际不可达。
+     *
+     * @param buffer 子进程输出缓冲
+     * @return 解码后的文本
+     */
+    private static String decodeUtf8(ByteArrayOutputStream buffer) {
+        try {
+            return buffer.toString("UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            return buffer.toString();
         }
     }
 
