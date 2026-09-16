@@ -69,7 +69,8 @@ The current SDK adapts opencode **v1.17.18** CLI + Server HTTP API.
 | Misc API | Available | commands, skills, formatters, LSPs, MCP servers, path, VCS, instance dispose, global upgrade |
 | Question / permission API | Available | pending questions + permissions, reply/reject |
 | SSE event stream | Available | `subscribe`, `subscribeQueue`, `subscribeSession`, `subscribeEventTypes`, typed `EventHandler` |
-| CLI wrapper | Available | `run`, `runJson`, sessions, agents, models, providers/auth, MCP, stats, export/import, db, debug, serve/web/attach, github, plugin, console |
+| CLI wrapper | Available | `run`, `runJson`, `run(RunOptions)` full-flag, `tui(TuiOptions)`, sessions, agents, models, providers/auth, MCP (`mcp auth list` incl.), stats, export/import, db, debug, serve/web/attach full-flag (`--mdns/--cors/--mdns-domain`), github, plugin, console, `raw` escape hatch |
+| MCP config model | Available | `McpServerConfig` (`local` stdio / `remote` HTTP-SSE, environment/headers/oauth/timeout/enabled) wired into `OpenCodeConfig.mcp` |
 
 <a id="3-requirements--compatibility"></a>
 ## 3. Requirements & Compatibility
@@ -242,6 +243,17 @@ OpenCodeCliResult result = cli.run("Explain async/await in JavaScript");
 System.out.println(result.getStdout());
 
 cli.run("Hello", "plan", "anthropic/claude-sonnet-4-5");  // agent + model
+
+// 全旗标 run（--command/--continue/--fork/--share/--file/--title/--attach/
+// --variant/--thinking/--dir/--port 均可组合）
+cli.run(new OpenCodeRunOptions("修复失败的测试")
+        .model("anthropic/claude-sonnet-4-5")
+        .format("json")
+        .attach("http://localhost:4096")
+        .variant("high"));
+
+// 交互式 TUI
+cli.tui(new OpenCodeTuiOptions().project(".").continueLast(true).fork(true));
 cli.sessionList();
 cli.serve(4096, "127.0.0.1");                             // opencode serve --port 4096 --hostname 127.0.0.1
 cli.upgrade("v1.18.0", "npm");

@@ -116,4 +116,9 @@ public class OpenCodeConfig {
      * 兜底字段：未知字段落这里
      */
     private Map<String, Object> extra;
+    /**
+     * MCP 服务器注册表，键为服务器唯一名称（见 MCP servers 文档）。
+     * 每项为 {@code local}（stdio）或 {@code remote}（HTTP/SSE）形态。
+     */
+    private Map<String, McpServerConfig> mcp;
 }

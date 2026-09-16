@@ -139,6 +139,147 @@ public class OpenCodeCli {
         return executor.execute(args.toArray(new String[0]));
     }
 
+    /**
+     * {@code opencode run <全旗标选项> <message>}
+     * <p>覆盖文档全部旗标的非交互执行：{@code --command/--continue/--session/
+     * --fork/--share/--model/--agent/--file/--format/--title/--attach/
+     * --username/--password/--dir/--variant/--thinking/--port}。</p>
+     *
+     * @param options 运行选项；不得为 {@code null}
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult run(OpenCodeRunOptions options) {
+        return executor.execute(options.toArgs());
+    }
+
+    /**
+     * 启动交互式 TUI：{@code opencode [project] [--continue/--session/--fork/
+     * --prompt/--model/--agent/--port/--hostname]}。
+     *
+     * @param options TUI 选项；不得为 {@code null}
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult tui(OpenCodeTuiOptions options) {
+        return executor.execute(options.toArgs());
+    }
+
+    /**
+     * {@code opencode mcp auth list}（别名 {@code ls}）——列出支持 OAuth 的
+     * MCP 服务器及其认证状态。
+     *
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult mcpAuthList() {
+        return executor.execute("mcp", "auth", "list");
+    }
+
+    /**
+     * {@code opencode serve --mdns --cors ...} 全旗标重载。
+     *
+     * @param port 监听端口；为 {@code null} 时使用 CLI 默认值
+     * @param hostname 监听地址；为空时使用 CLI 默认值
+     * @param mdns 是否在局域网以 mDNS 广播（隐含 hostname 0.0.0.0）
+     * @param cors 额外允许的 CORS 来源列表；为空/{@code null} 时不追加
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult serve(Integer port, String hostname, boolean mdns, java.util.List<String> cors) {
+        java.util.List<String> args = new ArrayList<String>();
+        args.add("serve");
+        if (port != null) { args.add("--port"); args.add(String.valueOf(port)); }
+        if (hostname != null) { args.add("--hostname"); args.add(hostname); }
+        if (mdns) { args.add("--mdns"); }
+        if (cors != null) {
+            for (String origin : cors) { args.add("--cors"); args.add(origin); }
+        }
+        return executor.execute(args.toArray(new String[0]));
+    }
+
+    /**
+     * {@code opencode web --port --hostname --mdns --mdns-domain --cors ...} 全旗标重载。
+     *
+     * @param port 监听端口；为 {@code null} 时自动选择可用端口
+     * @param hostname 监听地址；为空时使用 CLI 默认值（127.0.0.1）
+     * @param mdns 是否在局域网以 mDNS 广播（隐含 hostname 0.0.0.0）
+     * @param mdnsDomain 自定义 mDNS 域名；为空时不追加
+     * @param cors 额外允许的 CORS 来源列表；为空/{@code null} 时不追加
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult web(Integer port, String hostname, boolean mdns,
+                                 String mdnsDomain, java.util.List<String> cors) {
+        java.util.List<String> args = new ArrayList<String>();
+        args.add("web");
+        if (port != null) { args.add("--port"); args.add(String.valueOf(port)); }
+        if (hostname != null) { args.add("--hostname"); args.add(hostname); }
+        if (mdns) { args.add("--mdns"); }
+        if (mdnsDomain != null) { args.add("--mdns-domain"); args.add(mdnsDomain); }
+        if (cors != null) {
+            for (String origin : cors) { args.add("--cors"); args.add(origin); }
+        }
+        return executor.execute(args.toArray(new String[0]));
+    }
+
+    /**
+     * {@code opencode acp --cwd ... --port ... --hostname ...} 全旗标重载。
+     *
+     * @param cwd ACP 服务的工作目录；为空时继承配置
+     * @param port 监听端口；为 {@code null} 时使用 CLI 默认值
+     * @param hostname 监听地址；为空时使用 CLI 默认值
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult acp(String cwd, Integer port, String hostname) {
+        java.util.List<String> args = new ArrayList<String>();
+        args.add("acp");
+        if (cwd != null) { args.add("--cwd"); args.add(cwd); }
+        if (port != null) { args.add("--port"); args.add(String.valueOf(port)); }
+        if (hostname != null) { args.add("--hostname"); args.add(hostname); }
+        return executor.execute(args.toArray(new String[0]));
+    }
+
+    /**
+     * {@code opencode attach <url> --continue/--fork ...} 全旗标重载。
+     *
+     * @param url 运行中后端的 URL
+     * @param dir CLI 命令作用目录；为空时使用配置工作目录
+     * @param sessionId OpenCode 会话 ID；为空时不追加
+     * @param username Basic Auth 用户名；为空时不追加
+     * @param password Basic Auth 密码；为空时不追加，日志中不得明文输出
+     * @param continueLast 是否附加并延续最近会话（{@code --continue/-c}）
+     * @param fork 是否以 fork 方式附加（{@code --fork}）
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult attach(String url, String dir, String sessionId,
+                                    String username, String password,
+                                    boolean continueLast, boolean fork) {
+        java.util.List<String> args = new ArrayList<String>();
+        args.add("attach");
+        args.add(url);
+        if (dir != null) { args.add("--dir"); args.add(dir); }
+        if (sessionId != null) { args.add("--session"); args.add(sessionId); }
+        if (username != null) { args.add("--username"); args.add(username); }
+        if (password != null) { args.add("--password"); args.add(password); }
+        if (continueLast) { args.add("--continue"); }
+        if (fork) { args.add("--fork"); }
+        return executor.execute(args.toArray(new String[0]));
+    }
+
+    /**
+     * 原样执行任意 opencode 命令行——覆盖 SDK 尚未建模的子命令与旗标。
+     *
+     * @param args 完整参数列表（不含可执行文件名本身）
+     * @return CLI 的退出状态、标准输出和错误输出
+     * @since 3.0.0
+     */
+    public OpenCodeCliResult raw(String... args) {
+        return executor.execute(args);
+    }
+
     // ============================================================
     // session
     // ============================================================
