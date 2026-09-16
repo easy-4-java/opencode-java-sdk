@@ -48,8 +48,8 @@
     
     <properties>
         
-        <java.version>1.8</java.version>
-        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
         <maven.version>3.9.16</maven.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         
@@ -60,7 +60,7 @@
         <junit.version>4.13.2</junit.version>
         <lombok.version>1.18.46</lombok.version>
         <okhttp.version>4.12.0</okhttp.version>
-        <okhttp3-extension.version>1.0.x.20260730</okhttp3-extension.version>
+        <okhttp3-extension.version>1.0.x.20260630</okhttp3-extension.version>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <slf4j.version>2.0.18</slf4j.version>
         
