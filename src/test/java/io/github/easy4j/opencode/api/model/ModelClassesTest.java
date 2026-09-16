@@ -6,10 +6,11 @@ import io.github.easy4j.opencode.api.sse.StreamingChatResponse;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
-import static io.github.easy4j.opencode.Java8Collections.list;
-import static io.github.easy4j.opencode.Java8Collections.map;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -83,7 +84,7 @@ class ModelClassesTest {
         req.setModel("anthropic/claude-sonnet-4-5");
         req.setMessages(Collections.singletonList(ChatMessage.user("hi")));
         req.setStream(true);
-        req.setStreamOptions(map("include_usage", true));
+        req.setStreamOptions(Collections.singletonMap("include_usage", true));
         req.setAgent("coder");
         req.setSystem("system prompt");
         req.setMaxTokens(1024);
@@ -223,7 +224,7 @@ class ModelClassesTest {
         cmd.setName("/help");
         cmd.setDescription("Show help");
         cmd.setTemplate("help {{arg}}");
-        cmd.setArgs(list("arg"));
+        cmd.setArgs(Collections.singletonList("arg"));
         cmd.setAgent("coder");
         assertEquals("/help", cmd.getName());
         assertEquals("Show help", cmd.getDescription());
@@ -240,7 +241,7 @@ class ModelClassesTest {
     void shouldCreateEvent() {
         SseEvent event = new SseEvent();
         event.setType("session.idle");
-        event.setProperties(map("sessionID", "sess-1"));
+        event.setProperties(Collections.singletonMap("sessionID", "sess-1"));
         assertEquals("session.idle", event.getType());
         assertEquals("sess-1", event.getProperties().get("sessionID"));
     }
@@ -309,10 +310,10 @@ class ModelClassesTest {
     void shouldCreateFileSearchResult() {
         FileSearchResult result = new FileSearchResult();
         result.setPath("src/Main.java");
-        result.setLines(list("public class Main {}"));
+        result.setLines(Collections.singletonList("public class Main {}"));
         result.setLineNumber(1);
         result.setAbsoluteOffset(0);
-        result.setSubmatches(list());
+        result.setSubmatches(Collections.emptyList());
         assertEquals("src/Main.java", result.getPath());
         assertEquals(1, result.getLineNumber());
     }
@@ -355,7 +356,7 @@ class ModelClassesTest {
         lsp.setName("Eclipse JDT");
         lsp.setRoot("/project");
         lsp.setStatus("running");
-        lsp.setDiagnostics(list());
+        lsp.setDiagnostics(Collections.emptyList());
         assertEquals("jdtls", lsp.getId());
         assertEquals("running", lsp.getStatus());
     }
@@ -369,8 +370,8 @@ class ModelClassesTest {
         McpStatus mcp = new McpStatus();
         mcp.setName("github");
         mcp.setStatus("connected");
-        mcp.setConfig(map("url", "http://localhost"));
-        mcp.setTools(list("tool1"));
+        mcp.setConfig(Collections.singletonMap("url", "http://localhost"));
+        mcp.setTools(Collections.singletonList("tool1"));
         assertEquals("github", mcp.getName());
         assertEquals("connected", mcp.getStatus());
         assertEquals(1, mcp.getTools().size());
@@ -403,7 +404,7 @@ class ModelClassesTest {
         Message msg = new Message();
         msg.setId("msg-1");
         info.setInfo(msg);
-        info.setParts(list());
+        info.setParts(Collections.emptyList());
         assertEquals("msg-1", info.getInfo().getId());
         assertTrue(info.getParts().isEmpty());
     }
@@ -424,15 +425,15 @@ class ModelClassesTest {
         cfg.setUsername("user");
         cfg.setShare("public");
         cfg.setAutoshare(true);
-        cfg.setMode(map("k", "v"));
-        cfg.setProvider_(map("k", "v"));
-        cfg.setProviders(map("k", "v"));
-        cfg.setAgent_(map("k", "v"));
-        cfg.setAgents(map("k", "v"));
-        cfg.setPermission(map("k", "v"));
-        cfg.setTools(map("k", "v"));
-        cfg.setExperimental(map("k", "v"));
-        cfg.setExtra(map("k", "v"));
+        cfg.setMode(Collections.singletonMap("k", "v"));
+        cfg.setProvider_(Collections.singletonMap("k", "v"));
+        cfg.setProviders(Collections.singletonMap("k", "v"));
+        cfg.setAgent_(Collections.singletonMap("k", "v"));
+        cfg.setAgents(Collections.singletonMap("k", "v"));
+        cfg.setPermission(Collections.singletonMap("k", "v"));
+        cfg.setTools(Collections.singletonMap("k", "v"));
+        cfg.setExperimental(Collections.singletonMap("k", "v"));
+        cfg.setExtra(Collections.singletonMap("k", "v"));
         assertEquals("dark", cfg.getTheme());
         assertEquals("anthropic/claude-sonnet-4-5", cfg.getModel());
         assertEquals("coder", cfg.getAgent());
@@ -498,8 +499,8 @@ class ModelClassesTest {
         pr.setSessionID("sess-1");
         pr.setPermission("bash");
         pr.setDescription("run ls");
-        pr.setMetadata(map("command", "ls"));
-        pr.setPatterns(list("ls *"));
+        pr.setMetadata(Collections.singletonMap("command", "ls"));
+        pr.setPatterns(Collections.singletonList("ls *"));
         assertEquals("perm-1", pr.getId());
         assertEquals("bash", pr.getPermission());
         assertEquals(1, pr.getPatterns().size());
@@ -518,7 +519,7 @@ class ModelClassesTest {
         project.setWorktree("/project");
         project.setVcsDir("/project/.git");
         project.setVcs("git");
-        project.setSandboxes(list("sandbox1"));
+        project.setSandboxes(Collections.singletonList("sandbox1"));
         project.setCreatedAt("2025-01-01");
         assertEquals("proj-1", project.getId());
         assertEquals("my-project", project.getName());
@@ -550,7 +551,7 @@ class ModelClassesTest {
     @Test
     void shouldSetAllPromptRequestFields() {
         PromptRequest req = new PromptRequest();
-        req.setParts(list());
+        req.setParts(Collections.emptyList());
         req.setModel(new PromptRequest.ModelRef("anthropic", "claude-sonnet-4-5"));
         req.setAgent("coder");
         req.setNoReply(true);
@@ -577,7 +578,7 @@ class ModelClassesTest {
         toolPart.setText("ignored");
 
         PromptResult result = new PromptResult();
-        result.setParts(list(textPart, textPart2, toolPart));
+        result.setParts(Arrays.asList(textPart, textPart2, toolPart));
         assertEquals("hello world", result.getTextContent());
     }
 
@@ -593,7 +594,7 @@ class ModelClassesTest {
         toolPart.setType("tool_use");
         toolPart.setText("data");
         PromptResult result = new PromptResult();
-        result.setParts(list(toolPart));
+        result.setParts(Collections.singletonList(toolPart));
         assertEquals("", result.getTextContent());
     }
 
@@ -608,9 +609,9 @@ class ModelClassesTest {
         p.setName("Anthropic");
         p.setDescription("AI provider");
         p.setSource("builtin");
-        p.setAuthMethods(list());
-        p.setModels(map());
-        p.setOptions(map());
+        p.setAuthMethods(Collections.emptyList());
+        p.setModels(Collections.emptyMap());
+        p.setOptions(Collections.emptyMap());
         assertEquals("anthropic", p.getId());
         assertEquals("Anthropic", p.getName());
     }
@@ -642,9 +643,9 @@ class ModelClassesTest {
         ProviderAuthMethod method = new ProviderAuthMethod();
         method.setLabel("API Key");
         method.setType("api-key");
-        method.setSchema(map("type", "string"));
-        method.setPrefill(map());
-        method.setPromptOptions(list());
+        method.setSchema(Collections.singletonMap("type", "string"));
+        method.setPrefill(Collections.emptyMap());
+        method.setPromptOptions(Collections.emptyList());
         assertEquals("API Key", method.getLabel());
         assertEquals("api-key", method.getType());
     }
@@ -656,10 +657,10 @@ class ModelClassesTest {
     @Test
     void shouldCreateProviderList() {
         ProviderList list = new ProviderList();
-        list.setAll(list());
-        list.setDefaults(map("default", "anthropic/claude-sonnet-4-5"));
-        list.setDefault_(map("default", "anthropic/claude-sonnet-4-5"));
-        list.setConnected(list("anthropic"));
+        list.setAll(Collections.emptyList());
+        list.setDefaults(Collections.singletonMap("default", "anthropic/claude-sonnet-4-5"));
+        list.setDefault_(Collections.singletonMap("default", "anthropic/claude-sonnet-4-5"));
+        list.setConnected(Collections.singletonList("anthropic"));
         assertTrue(list.getAll().isEmpty());
         assertEquals(1, list.getConnected().size());
     }
@@ -679,7 +680,7 @@ class ModelClassesTest {
         opt.setLabel("Option A");
         opt.setDescription("First option");
         opt.setPreview("preview");
-        qr.setOptions(list(opt));
+        qr.setOptions(Collections.singletonList(opt));
         assertEquals("q-1", qr.getId());
         assertEquals(1, qr.getOptions().size());
         assertEquals("Option A", qr.getOptions().get(0).getLabel());
@@ -697,7 +698,7 @@ class ModelClassesTest {
         s.setParentId(null);
         s.setCreatedAt("2025-01-01");
         s.setUpdatedAt("2025-01-02");
-        s.setMetadata(map("key", "val"));
+        s.setMetadata(Collections.singletonMap("key", "val"));
         assertEquals("sess-1", s.getId());
         assertEquals("my-session", s.getTitle());
     }
@@ -759,7 +760,7 @@ class ModelClassesTest {
         sym.setContainerName("io.github.easy4j.opencode");
         sym.setLocation("OpenCodeClient.java:50");
         sym.setUri("file:///project/OpenCodeClient.java");
-        sym.setRange(map());
+        sym.setRange(Collections.emptyMap());
         assertEquals("OpenCodeClient", sym.getName());
         assertEquals("class", sym.getKind());
     }

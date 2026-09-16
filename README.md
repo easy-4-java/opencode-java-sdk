@@ -2,13 +2,13 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-[![Java](https://img.shields.io/badge/Java-8-orange)](https://github.com/easy-4-java/opencode-java-sdk) [![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
+[![Java](https://img.shields.io/badge/Java-21-orange)](https://github.com/easy-4-java/opencode-java-sdk) [![License](https://img.shields.io/badge/license-Apache%202.0-green)](./LICENSE)
 
 Pure Java SDK (no Spring) for the OpenCode Server: HTTP REST API, SSE event stream and local CLI
 [简体中文](./README.zh-CN.md)
 
-> **Current branch**: `feature/1.0.x`
-> **Version**: `1.0.x.20260630-SNAPSHOT`
+> **Current branch**: `feature/3.0.x`
+> **Version**: `3.0.x.x.20260630-SNAPSHOT`
 > **JDK baseline**: 8
 > **Project status**: stable (1.0.x line). Not yet published to Maven Central; artifacts are distributed via the Aliyun Maven repository and GitHub Releases.
 
@@ -69,14 +69,15 @@ The current SDK adapts opencode **v1.17.18** CLI + Server HTTP API.
 | Misc API | Available | commands, skills, formatters, LSPs, MCP servers, path, VCS, instance dispose, global upgrade |
 | Question / permission API | Available | pending questions + permissions, reply/reject |
 | SSE event stream | Available | `subscribe`, `subscribeQueue`, `subscribeSession`, `subscribeEventTypes`, typed `EventHandler` |
-| CLI wrapper | Available | `run`, `runJson`, sessions, agents, models, providers/auth, MCP, stats, export/import, db, debug, serve/web/attach, github, plugin, console |
+| CLI wrapper | Available | `run`, `runJson`, `run(RunOptions)` full-flag, `tui(TuiOptions)`, sessions, agents, models, providers/auth, MCP (`mcp auth list` incl.), stats, export/import, db, debug, serve/web/attach full-flag (`--mdns/--cors/--mdns-domain`), github, plugin, console, `raw` escape hatch |
+| MCP config model | Available | `McpServerConfig` (`local` stdio / `remote` HTTP-SSE, environment/headers/oauth/timeout/enabled) wired into `OpenCodeConfig.mcp` |
 
 <a id="3-requirements--compatibility"></a>
 ## 3. Requirements & Compatibility
 
 | Component | Version | Notes |
 |---|---:|---|
-| JDK | 8+ | 1.0.x line baseline |
+| JDK | 21+ | 1.0.x line baseline |
 | Maven | 3.0+ | Enforcer minimum |
 | OkHttp / okhttp-sse | 4.12.0 | HTTP + SSE transport |
 | Jackson databind | 2.17.x | JSON |
@@ -87,7 +88,7 @@ Version-line matrix:
 
 | Version line | Branch | JDK | Version pattern | Purpose |
 |---|---|---:|---|---|
-| 1.0.x | `feature/1.0.x` (this branch) | 8 | `1.0.x.*` | Legacy projects, Boot 2.x starter line |
+| 1.0.x | `feature/3.0.x` (this branch) | 8 | `1.0.x.*` | Legacy projects, Boot 2.x starter line |
 | 2.0.x | `feature/2.0.x` | 17 | `2.0.x.*` | Main line (JDK 17) |
 | 3.0.x | `feature/3.0.x` | 21 | `3.0.x.*` | New projects |
 
@@ -136,14 +137,14 @@ Maven:
 <dependency>
     <groupId>io.github.easy4j</groupId>
     <artifactId>opencode-java-sdk</artifactId>
-    <version>1.0.x.20260630-SNAPSHOT</version>
+    <version>3.0.x.x.20260630-SNAPSHOT</version>
 </dependency>
 ```
 
 Gradle:
 
 ```groovy
-implementation 'io.github.easy4j:opencode-java-sdk:1.0.x.20260630-SNAPSHOT'
+implementation 'io.github.easy4j:opencode-java-sdk:3.0.x.x.20260630-SNAPSHOT'
 ```
 
 Snapshot builds require an enabled snapshot repository (Aliyun Maven snapshot repository per `distributionManagement` in `pom.xml`).
@@ -242,6 +243,17 @@ OpenCodeCliResult result = cli.run("Explain async/await in JavaScript");
 System.out.println(result.getStdout());
 
 cli.run("Hello", "plan", "anthropic/claude-sonnet-4-5");  // agent + model
+
+// 全旗标 run（--command/--continue/--fork/--share/--file/--title/--attach/
+// --variant/--thinking/--dir/--port 均可组合）
+cli.run(new OpenCodeRunOptions("修复失败的测试")
+        .model("anthropic/claude-sonnet-4-5")
+        .format("json")
+        .attach("http://localhost:4096")
+        .variant("high"));
+
+// 交互式 TUI
+cli.tui(new OpenCodeTuiOptions().project(".").continueLast(true).fork(true));
 cli.sessionList();
 cli.serve(4096, "127.0.0.1");                             // opencode serve --port 4096 --hostname 127.0.0.1
 cli.upgrade("v1.18.0", "npm");

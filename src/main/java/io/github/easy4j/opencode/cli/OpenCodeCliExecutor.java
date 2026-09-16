@@ -54,8 +54,10 @@ public class OpenCodeCliExecutor {
     public OpenCodeCliResult execute(String... args) {
         CommandLine cmd = CommandLine.parse(config.getExecutable());
         for (String arg : args) {
-            // 每个业务参数作为独立命令行元素加入，避免空格或特殊字符被重新解释为多个参数。
-            cmd.addArgument(arg);
+            // handleQuoting=false：子进程经 exec(argv) 启动而非 shell，
+            // commons-exec 默认会把含空格参数包上字面双引号烤进 argv，
+            // 导致多词 prompt 以带引号形态到达 opencode。
+            cmd.addArgument(arg, false);
         }
 
         DefaultExecutor executor = new DefaultExecutor();

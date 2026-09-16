@@ -1,9 +1,12 @@
 package io.github.easy4j.opencode.api.event;
 
+import java.util.Collections;
+
 import io.github.easy4j.opencode.api.sse.SseEvent;
 import org.junit.jupiter.api.Test;
 
-import static io.github.easy4j.opencode.Java8Collections.map;
+import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -16,14 +19,14 @@ class EventHandlerTest {
         EventHandler handler = new EventHandler() {};
         SseEvent event = new SseEvent();
         event.setType("test");
-        event.setProperties(map());
+        event.setProperties(Collections.emptyMap());
 
         // All default methods should be no-op and not throw
         assertDoesNotThrow(() -> handler.onEvent(event));
         assertDoesNotThrow(() -> handler.onSessionIdle("sess-1", event));
         assertDoesNotThrow(() -> handler.onSessionError("sess-1", "error", event));
         assertDoesNotThrow(() -> handler.onTextDelta("delta", event));
-        assertDoesNotThrow(() -> handler.onToolCall("bash", map(), event));
+        assertDoesNotThrow(() -> handler.onToolCall("bash", Collections.emptyMap(), event));
         assertDoesNotThrow(() -> handler.onToolResult("use-1", "output", event));
         assertDoesNotThrow(() -> handler.onMessage("msg-1", "assistant", event));
         assertDoesNotThrow(() -> handler.onSessionStatus("sess-1", "idle", event));

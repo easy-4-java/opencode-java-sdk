@@ -6,7 +6,6 @@ import io.github.easy4j.opencode.api.sse.SseEvent;
 import io.github.easy4j.opencode.api.sse.SseQueueSubscription;
 import io.github.easy4j.opencode.api.sse.SseSubscription;
 import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.RecordedRequest;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,12 +13,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.github.easy4j.opencode.Java8Collections.set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -76,7 +75,7 @@ class OpenCodeSseClientTest {
         Thread.sleep(500);
         assertNotNull(received.get());
 
-        RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
+        okhttp3.mockwebserver.RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
         assertNotNull(request);
         assertEquals("/data/project", request.getHeader("X-OpenCode-Directory"));
         subscription.cancel();
@@ -122,7 +121,7 @@ class OpenCodeSseClientTest {
 
         AtomicReference<SseEvent> received = new AtomicReference<>();
         SseSubscription subscription = sseClient.subscribeEventTypes(
-                set("wanted"), received::set);
+                Collections.singleton("wanted"), received::set);
 
         Thread.sleep(500);
         assertNotNull(received.get());
@@ -198,7 +197,7 @@ class OpenCodeSseClientTest {
         Thread.sleep(500);
         assertNotNull(received.get());
 
-        RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
+        okhttp3.mockwebserver.RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
         assertNotNull(request);
         assertEquals("/data/proj", request.getHeader("X-OpenCode-Directory"));
         subscription.cancel();
