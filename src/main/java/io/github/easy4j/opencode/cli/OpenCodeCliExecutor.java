@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -77,8 +78,10 @@ public class OpenCodeCliExecutor {
 
         try {
             int exitCode = executor.execute(cmd);
-            String out = stdout.toString().trim();
-            String err = stderr.toString().trim();
+            // 显式 UTF-8 解码：toString() 走平台默认字符集，GBK 默认字符集的
+            // Windows 上会把 opencode 的 UTF-8 输出解成乱码。
+            String out = stdout.toString(StandardCharsets.UTF_8).trim();
+            String err = stderr.toString(StandardCharsets.UTF_8).trim();
             if (config.getDebug().allows(HttpLogLevel.BASIC)) {
                 log.debug("OpenCode CLI executed: exitCode={}, stdoutLength={}, stderrLength={}",
                         exitCode, out.length(), err.length());
