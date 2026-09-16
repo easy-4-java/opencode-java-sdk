@@ -16,6 +16,22 @@ class OpenCodeCliExecutorTest {
     }
 
     @Test
+    void shouldDecodeUtf8OutputFromChildProcess() {
+        // 子进程经 POSIX printf 八进制转义输出"你好"的 UTF-8 字节
+        //（\344\275\240\345\245\275）。源码必须写双反斜杠：Java 字面量里
+        // 的 \344 会被编译器当八进制转义吃掉。
+        OpenCodeCliConfig config = new OpenCodeCliConfig();
+        config.setExecutable("sh");
+        config.setTimeout(5);
+        OpenCodeCliExecutor executor = new OpenCodeCliExecutor(config);
+
+        OpenCodeCliResult result = executor.execute("-c", "printf '\\344\\275\\240\\345\\245\\275'");
+
+        assertTrue(result.isSuccess());
+        assertEquals("你好", result.getStdout(), "UTF-8 输出必须按 UTF-8 解码，而非平台默认字符集");
+    }
+
+    @Test
     void shouldExecuteSimpleCommand() {
         OpenCodeCliConfig config = new OpenCodeCliConfig();
         config.setExecutable("echo");
