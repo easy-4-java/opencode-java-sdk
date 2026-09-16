@@ -75,7 +75,7 @@ class OpenCodeSseClientTest {
         Thread.sleep(500);
         assertNotNull(received.get());
 
-        var request = server.takeRequest(2, TimeUnit.SECONDS);
+        okhttp3.mockwebserver.RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
         assertNotNull(request);
         assertEquals("/data/project", request.getHeader("X-OpenCode-Directory"));
         subscription.cancel();
@@ -121,7 +121,7 @@ class OpenCodeSseClientTest {
 
         AtomicReference<SseEvent> received = new AtomicReference<>();
         SseSubscription subscription = sseClient.subscribeEventTypes(
-                Set.of("wanted"), received::set);
+                Collections.singleton("wanted"), received::set);
 
         Thread.sleep(500);
         assertNotNull(received.get());
@@ -197,7 +197,7 @@ class OpenCodeSseClientTest {
         Thread.sleep(500);
         assertNotNull(received.get());
 
-        var request = server.takeRequest(2, TimeUnit.SECONDS);
+        okhttp3.mockwebserver.RecordedRequest request = server.takeRequest(2, TimeUnit.SECONDS);
         assertNotNull(request);
         assertEquals("/data/proj", request.getHeader("X-OpenCode-Directory"));
         subscription.cancel();
