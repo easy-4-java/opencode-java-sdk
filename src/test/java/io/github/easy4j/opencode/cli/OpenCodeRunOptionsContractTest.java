@@ -16,6 +16,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class OpenCodeRunOptionsContractTest {
 
     @Test
+    void autoApprovalMustBeOptInBooleanSwitch() {
+        OpenCodeRunOptions disabled = new OpenCodeRunOptions("hello");
+        List<String> disabledArgs = Arrays.asList(disabled.toArgs());
+        assertFalse(disabledArgs.contains("--auto"), "--auto must be disabled by default");
+
+        OpenCodeRunOptions enabled = new OpenCodeRunOptions("hello");
+        Method auto = assertDoesNotThrow(
+                () -> OpenCodeRunOptions.class.getMethod("auto", boolean.class),
+                "OpenCode run --auto must be explicitly modeled");
+        assertDoesNotThrow(() -> auto.invoke(enabled, true));
+
+        List<String> enabledArgs = Arrays.asList(enabled.toArgs());
+        assertTrue(enabledArgs.contains("--auto"));
+    }
+
+    @Test
+    void interactiveModeMustBeExplicitlyModeled() {
+        OpenCodeRunOptions options = new OpenCodeRunOptions("hello");
+        Method interactive = assertDoesNotThrow(
+                () -> OpenCodeRunOptions.class.getMethod("interactive", boolean.class),
+                "OpenCode run --interactive must be explicitly modeled");
+        assertDoesNotThrow(() -> interactive.invoke(options, true));
+
+        assertTrue(Arrays.asList(options.toArgs()).contains("--interactive"));
+    }
+
+    @Test
     void shareMustBeBooleanSwitchWithoutValue() {
         OpenCodeRunOptions options = new OpenCodeRunOptions("hello");
 
