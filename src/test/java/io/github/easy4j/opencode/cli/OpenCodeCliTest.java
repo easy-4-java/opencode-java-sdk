@@ -86,7 +86,8 @@ class OpenCodeCliTest {
         assertTrue(out.contains("--dir /tmp/work"));
         assertTrue(out.contains("--file a.md"));
         assertTrue(out.contains("--file b.md"));
-        assertTrue(out.contains("--share org"));
+        assertTrue(out.contains("--share"));
+        assertFalse(out.contains("--share org"), "--share is a boolean switch and must not consume a value");
         assertTrue(out.contains("--fork"));
     }
 

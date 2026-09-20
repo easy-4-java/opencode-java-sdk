@@ -39,7 +39,7 @@ class McpServerConfigTest {
     private final ObjectMapper mapper = new JsonMapper();
 
     @Test
-    void shouldRoundTripLocalServer() throws Exception {
+    void shouldRoundTripLocalServer() {
         McpServerConfig config = McpServerConfig.builder()
                 .type("local")
                 .command(Arrays.asList("npx", "-y", "@modelcontextprotocol/server-everything"))
@@ -60,7 +60,7 @@ class McpServerConfigTest {
     }
 
     @Test
-    void shouldRoundTripRemoteServer() throws Exception {
+    void shouldRoundTripRemoteServer() {
         Map<String, String> headers = new LinkedHashMap<String, String>();
         headers.put("Authorization", "Bearer MY_API_KEY");
         McpServerConfig config = McpServerConfig.builder()
@@ -80,7 +80,7 @@ class McpServerConfigTest {
     }
 
     @Test
-    void shouldTolerateUnknownFieldsAndOauthFalse() throws Exception {
+    void shouldTolerateUnknownFieldsAndOauthFalse() {
         String json = "{\"type\":\"remote\",\"url\":\"https://x.com\",\"oauth\":false,"
                 + "\"unknownField\":123}";
         McpServerConfig decoded = mapper.readValue(json, McpServerConfig.class);
@@ -91,7 +91,7 @@ class McpServerConfigTest {
     }
 
     @Test
-    void shouldDeserializeOauthCredentialsObject() throws Exception {
+    void shouldDeserializeOauthCredentialsObject() {
         String json = "{\"type\":\"remote\",\"url\":\"https://x.com\","
                 + "\"oauth\":{\"clientId\":\"cid\",\"clientSecret\":\"{env:SECRET}\",\"scope\":\"read\"}}";
         McpServerConfig decoded = mapper.readValue(json, McpServerConfig.class);

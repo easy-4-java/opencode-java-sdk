@@ -65,11 +65,6 @@ public class OpenCodeHttpClient implements AutoCloseable {
      */
     private final OkHttpClient httpClient;
     /**
-     * 是否由 SDK 自建 OkHttp 客户端（构造时传入 {@code null}）；自建的由
-     * {@link #close()} 负责 shutdown，外部注入的归调用方所有。
-     */
-    private final boolean ownsHttpClient;
-    /**
      * 请求与响应 JSON 的序列化映射器。
      */
     private final ObjectMapper objectMapper;
@@ -85,8 +80,7 @@ public class OpenCodeHttpClient implements AutoCloseable {
         this.config = Objects.requireNonNull(config, "config");
         this.objectMapper = Objects.isNull(objectMapper) ? JsonMapper.builder()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build(): objectMapper;
-        this.ownsHttpClient = Objects.isNull(httpClient);
-        this.httpClient = this.ownsHttpClient ? buildOkHttpClient(config) : httpClient;
+        this.httpClient = Objects.isNull(httpClient) ? buildOkHttpClient(config) : httpClient;
         if (allows(HttpLogLevel.BASIC)) {
             log.debug("OpenCode HTTP client initialized: baseUrl={}, connectTimeoutMs={}, readTimeoutMs={}, "
                             + "callTimeoutMs={}, retryOnConnectionFailure={}, debugLevel={}",
@@ -1636,17 +1630,6 @@ public class OpenCodeHttpClient implements AutoCloseable {
      */
     @Override
     public void close() {
-        // OkHttp Dispatcher 线程默认非 daemon：自建客户端必须显式 shutdown，
-        // 否则循环创建 client 的场景会积留线程；外部注入的归调用方所有。
-        if (ownsHttpClient) {
-            OpenCodeOkHttpClientFactory.shutdown(httpClient);
-        }
-    }
-
-    /**
-     * 包内可见的底层 OkHttp 客户端访问器（测试断言 shutdown 状态用）。
-     */
-    OkHttpClient internalHttpClient() {
-        return httpClient;
+        // 外部传入的 OkHttpClient 不关闭；自建的也不主动关闭（OkHttpClient 内部管理连接池）
     }
 }

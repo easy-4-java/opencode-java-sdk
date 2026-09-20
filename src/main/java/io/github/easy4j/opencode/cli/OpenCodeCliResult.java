@@ -25,6 +25,25 @@ public class OpenCodeCliResult {
      */
     private final String stderr;
 
+    /** Whether retained stdout was truncated by the configured capture bound. */
+    private final boolean stdoutTruncated;
+
+    /** Whether retained stderr was truncated by the configured capture bound. */
+    private final boolean stderrTruncated;
+
+    public OpenCodeCliResult(int exitCode, String stdout, String stderr) {
+        this(exitCode, stdout, stderr, false, false);
+    }
+
+    public OpenCodeCliResult(int exitCode, String stdout, String stderr,
+                             boolean stdoutTruncated, boolean stderrTruncated) {
+        this.exitCode = exitCode;
+        this.stdout = stdout;
+        this.stderr = stderr;
+        this.stdoutTruncated = stdoutTruncated;
+        this.stderrTruncated = stderrTruncated;
+    }
+
     /**
      * 判断 CLI 进程是否以零状态码正常结束。
      *
