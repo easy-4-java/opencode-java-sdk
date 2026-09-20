@@ -1,0 +1,16 @@
+schema: spec-driven
+
+project:
+  name: opencode-java-sdk
+  description: Pure Java SDK for OpenCode HTTP, SSE and CLI integration.
+  language: Java
+  build: Maven
+
+conventions:
+  change_naming: kebab-case
+  requirements:
+    keyword: MUST
+  compatibility_branches:
+    - feature/1.0.x
+    - feature/2.0.x
+    - feature/3.0.x
