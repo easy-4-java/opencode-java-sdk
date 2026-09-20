@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -392,5 +393,24 @@ class OpenCodeHttpClientTest {
         return new MockResponse()
                 .setHeader("Content-Type", "application/json")
                 .setBody(body);
+    }
+    @Test
+    void shouldShutdownOwnedHttpClientOnClose() {
+        OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
+        OpenCodeHttpClient owned = new OpenCodeHttpClient(config, null, null);
+        owned.close();
+        assertTrue(owned.internalHttpClient().dispatcher().executorService().isShutdown(),
+                "自建 OkHttp 客户端必须在 close 时 shutdown");
+    }
+
+    @Test
+    void shouldNotShutdownInjectedHttpClientOnClose() {
+        okhttp3.OkHttpClient injected = new okhttp3.OkHttpClient.Builder().build();
+        OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
+        OpenCodeHttpClient borrower = new OpenCodeHttpClient(config, null, injected);
+        borrower.close();
+        assertFalse(injected.dispatcher().executorService().isShutdown(),
+                "外部注入的 OkHttp 客户端归调用方所有，close 不得 shutdown");
+        injected.dispatcher().executorService().shutdown();
     }
 }
