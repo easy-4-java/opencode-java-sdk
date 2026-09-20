@@ -1,0 +1,4 @@
+# ShellCheck 仓库级配置
+# SC1071: scripts/*.zsh 为合法 zsh 脚本，bash 方言规则不适用
+# SC2148: target/reports/apidocs/javadoc.sh 为 maven-javadoc-plugin 生成物，无 shebang 属已知噪音
+disable=SC1071,SC2148

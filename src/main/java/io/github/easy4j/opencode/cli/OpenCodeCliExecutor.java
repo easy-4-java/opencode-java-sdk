@@ -4,6 +4,7 @@ import io.github.easy4j.opencode.OpenCodeCliConfig;
 import okhttp3.extension.logging.HttpLogLevel;
 import org.apache.commons.exec.CommandLine;
 import org.apache.commons.exec.DefaultExecutor;
+import org.apache.commons.exec.ExecuteException;
 import org.apache.commons.exec.ExecuteWatchdog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.concurrent.Semaphore;
 
 /**
  * Executor for the local {@code opencode} CLI subprocess.
@@ -38,12 +40,20 @@ public class OpenCodeCliExecutor {
     private final OpenCodeCliConfig config;
 
     /**
+     * 并发执行闸门；{@code maxConcurrentExecutions <= 0} 时为 {@code null}
+     * （不限并发）。每个 executor 实例独立一把。
+     */
+    private final Semaphore executionGate;
+
+    /**
      * 创建 open code cli executor 实例，并按传入依赖确定资源所有权。
      *
      * @param config 客户端配置；不得为 {@code null}
      */
     public OpenCodeCliExecutor(OpenCodeCliConfig config) {
         this.config = Objects.requireNonNull(config, "config");
+        int max = config.getMaxConcurrentExecutions();
+        this.executionGate = max > 0 ? new Semaphore(max) : null;
     }
 
     /**
@@ -53,6 +63,24 @@ public class OpenCodeCliExecutor {
      * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult execute(String... args) {
+        Semaphore gate = executionGate;
+        if (gate == null) {
+            return runProcess(args);
+        }
+        try {
+            gate.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new OpenCodeCliResult(-1, "", "interrupted while waiting for the CLI execution gate");
+        }
+        try {
+            return runProcess(args);
+        } finally {
+            gate.release();
+        }
+    }
+
+    private OpenCodeCliResult runProcess(String... args) {
         CommandLine cmd = CommandLine.parse(config.getExecutable());
         for (String arg : args) {
             // handleQuoting=false：子进程经 exec(argv) 启动而非 shell，
@@ -76,6 +104,7 @@ public class OpenCodeCliExecutor {
         ExecuteWatchdog watchdog = new ExecuteWatchdog(timeoutMs);
         executor.setWatchdog(watchdog);
 
+        long startNanos = System.nanoTime();
         try {
             int exitCode = executor.execute(cmd);
             // 显式 UTF-8 解码：toString() 走平台默认字符集，GBK 默认字符集的
@@ -89,7 +118,22 @@ public class OpenCodeCliExecutor {
             if (config.getDebug().allows(HttpLogLevel.BODY)) {
                 log.debug("OpenCode CLI output: stdout={}, stderr={}", truncate(out), truncate(err));
             }
+            if (watchdog.killedProcess()) {
+                return new OpenCodeCliResult(-1, out, "opencode CLI timed out after " + timeoutMs + " ms\n" + err);
+            }
             return new OpenCodeCliResult(exitCode, out, err);
+        } catch (ExecuteException e) {
+            // commons-exec 对每次非零退出抛 ExecuteException；泵线程在抛出前
+            // 已 join，两路缓冲完整——连同真实退出码一并返回，不再折叠为
+            // -1 + 空输出。超时判定用截止时间法，规避 killedProcess() 观察竞态。
+            String out = stdout.toString(StandardCharsets.UTF_8).trim();
+            String err = stderr.toString(StandardCharsets.UTF_8).trim();
+            boolean timedOut = watchdog.killedProcess()
+                    || System.nanoTime() - startNanos >= timeoutMs * 1_000_000L;
+            if (timedOut) {
+                return new OpenCodeCliResult(-1, out, "opencode CLI timed out after " + timeoutMs + " ms\n" + err);
+            }
+            return new OpenCodeCliResult(e.getExitValue(), out, err);
         } catch (IOException e) {
             return new OpenCodeCliResult(-1, "", e.getMessage());
         }
