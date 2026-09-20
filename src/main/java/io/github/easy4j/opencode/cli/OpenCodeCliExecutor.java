@@ -11,8 +11,12 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Semaphore;
 
 /**
  * Executor for the local {@code opencode} CLI subprocess.
@@ -37,6 +41,9 @@ public class OpenCodeCliExecutor {
      */
     private final OpenCodeCliConfig config;
 
+    /** Optional per-executor concurrency gate; null means unlimited. */
+    private final Semaphore concurrencyLimiter;
+
     /**
      * 创建 open code cli executor 实例，并按传入依赖确定资源所有权。
      *
@@ -44,6 +51,8 @@ public class OpenCodeCliExecutor {
      */
     public OpenCodeCliExecutor(OpenCodeCliConfig config) {
         this.config = Objects.requireNonNull(config, "config");
+        this.concurrencyLimiter = config.getMaxConcurrentExecutions() > 0
+                ? new Semaphore(config.getMaxConcurrentExecutions(), true) : null;
     }
 
     /**
@@ -53,46 +62,105 @@ public class OpenCodeCliExecutor {
      * @return CLI 的退出状态、标准输出和错误输出
      */
     public OpenCodeCliResult execute(String... args) {
+        return execute(null, args);
+    }
+
+    /**
+     * Execute a CLI command with overrides that apply only to this child process.
+     *
+     * @param context per-execution environment / working-directory overrides; nullable
+     * @param args arguments passed to the OpenCode CLI executable
+     * @return captured CLI result
+     */
+    public OpenCodeCliResult execute(OpenCodeCliExecutionContext context, String... args) {
+        boolean acquired = false;
+        try {
+            if (concurrencyLimiter != null) {
+                concurrencyLimiter.acquire();
+                acquired = true;
+            }
+            return executeInternal(context, args);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            return new OpenCodeCliResult(-1, "", "CLI execution interrupted");
+        } finally {
+            if (acquired) {
+                concurrencyLimiter.release();
+            }
+        }
+    }
+
+    private OpenCodeCliResult executeInternal(OpenCodeCliExecutionContext context, String... args) {
         CommandLine cmd = CommandLine.parse(config.getExecutable());
         for (String arg : args) {
-            // handleQuoting=false：子进程经 exec(argv) 启动而非 shell，
-            // commons-exec 默认会把含空格参数包上字面双引号烤进 argv，
-            // 导致多词 prompt 以带引号形态到达 opencode。
+            // Child processes are launched with argv rather than a shell command string.
             cmd.addArgument(arg, false);
         }
 
         DefaultExecutor executor = new DefaultExecutor();
-        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+        BoundedOutputStream stdout = new BoundedOutputStream(config.getMaxStdoutBytes());
+        BoundedOutputStream stderr = new BoundedOutputStream(config.getMaxStderrBytes());
         executor.setStreamHandler(new org.apache.commons.exec.PumpStreamHandler(stdout, stderr));
 
-        File workingDirectory = resolveWorkingDirectory();
+        File workingDirectory = resolveWorkingDirectory(context);
         if (workingDirectory != null) {
             executor.setWorkingDirectory(workingDirectory);
         }
 
         long timeoutMs = config.getTimeout() * 1000L;
-        // Watchdog 在超时后终止子进程；同步 CLI 边界与 OkHttp Dispatcher 相互独立。
         ExecuteWatchdog watchdog = new ExecuteWatchdog(timeoutMs);
         executor.setWatchdog(watchdog);
 
         try {
-            int exitCode = executor.execute(cmd);
-            // 显式 UTF-8 解码：toString() 走平台默认字符集，GBK 默认字符集的
-            // Windows 上会把 opencode 的 UTF-8 输出解成乱码。
-            String out = stdout.toString(StandardCharsets.UTF_8).trim();
-            String err = stderr.toString(StandardCharsets.UTF_8).trim();
-            if (config.getDebug().allows(HttpLogLevel.BASIC)) {
-                log.debug("OpenCode CLI executed: exitCode={}, stdoutLength={}, stderrLength={}",
-                        exitCode, out.length(), err.length());
+            int exitCode;
+            Map<String, String> environment = resolveEnvironment(context);
+            if (environment == null) {
+                exitCode = executor.execute(cmd);
+            } else {
+                exitCode = executor.execute(cmd, environment);
             }
-            if (config.getDebug().allows(HttpLogLevel.BODY)) {
-                log.debug("OpenCode CLI output: stdout={}, stderr={}", truncate(out), truncate(err));
-            }
-            return new OpenCodeCliResult(exitCode, out, err);
-        } catch (IOException e) {
-            return new OpenCodeCliResult(-1, "", e.getMessage());
+            return buildResult(exitCode, stdout, stderr, null);
+        } catch (IOException error) {
+            // Preserve output already produced before spawn/exec/timeout failure.
+            return buildResult(-1, stdout, stderr, error.getMessage());
         }
+    }
+
+    private OpenCodeCliResult buildResult(int exitCode, BoundedOutputStream stdout,
+                                          BoundedOutputStream stderr, String failureMessage) {
+        String out = stdout.decodeUtf8().trim();
+        String err = stderr.decodeUtf8().trim();
+        if (failureMessage != null && !failureMessage.isEmpty() && err.isEmpty()) {
+            err = failureMessage;
+        }
+        if (config.getDebug().allows(HttpLogLevel.BASIC)) {
+            log.debug("OpenCode CLI executed: exitCode={}, stdoutLength={}, stderrLength={}, "
+                            + "stdoutTruncated={}, stderrTruncated={}",
+                    exitCode, out.length(), err.length(), stdout.isTruncated(), stderr.isTruncated());
+        }
+        if (config.getDebug().allows(HttpLogLevel.BODY)) {
+            log.debug("OpenCode CLI output: stdout={}, stderr={}", truncate(out), truncate(err));
+        }
+        return new OpenCodeCliResult(exitCode, out, err,
+                stdout.isTruncated(), stderr.isTruncated());
+    }
+
+    private Map<String, String> resolveEnvironment(OpenCodeCliExecutionContext context) {
+        if (context == null) {
+            return null;
+        }
+        Map<String, String> overrides = context.getEnvironment();
+        if (context.isInheritParentEnvironment() && (overrides == null || overrides.isEmpty())) {
+            return null;
+        }
+        Map<String, String> environment = new HashMap<>();
+        if (context.isInheritParentEnvironment()) {
+            environment.putAll(System.getenv());
+        }
+        if (overrides != null) {
+            environment.putAll(overrides);
+        }
+        return environment;
     }
 
     /**
@@ -115,6 +183,8 @@ public class OpenCodeCliExecutor {
         copy.setExecutable(source.getExecutable());
         copy.setWorkingDirectory(source.getWorkingDirectory());
         copy.setMaxConcurrentExecutions(source.getMaxConcurrentExecutions());
+        copy.setMaxStdoutBytes(source.getMaxStdoutBytes());
+        copy.setMaxStderrBytes(source.getMaxStderrBytes());
         int probeSec = source.getProbeTimeoutSeconds();
         if (probeSec <= 0) {
             probeSec = 5;
@@ -129,11 +199,58 @@ public class OpenCodeCliExecutor {
         return content.length() <= maxLength ? content : content.substring(0, maxLength) + "...<truncated>";
     }
 
-    private File resolveWorkingDirectory() {
-        String dir = config.getWorkingDirectory();
+    private File resolveWorkingDirectory(OpenCodeCliExecutionContext context) {
+        String dir = context != null && context.getWorkingDirectory() != null
+                ? context.getWorkingDirectory() : config.getWorkingDirectory();
         if (dir == null || dir.trim().isEmpty()) {
             return null;
         }
         return new File(dir.trim());
+    }
+
+    private static final class BoundedOutputStream extends OutputStream {
+        private final ByteArrayOutputStream delegate = new ByteArrayOutputStream();
+        private final int maxBytes;
+        private boolean truncated;
+
+        private BoundedOutputStream(int maxBytes) {
+            this.maxBytes = maxBytes;
+        }
+
+        @Override
+        public void write(int value) {
+            if (maxBytes <= 0 || delegate.size() < maxBytes) {
+                delegate.write(value);
+            } else {
+                truncated = true;
+            }
+        }
+
+        @Override
+        public void write(byte[] bytes, int offset, int length) {
+            if (length <= 0) {
+                return;
+            }
+            if (maxBytes <= 0) {
+                delegate.write(bytes, offset, length);
+                return;
+            }
+            int remaining = Math.max(0, maxBytes - delegate.size());
+            int retained = Math.min(remaining, length);
+            if (retained > 0) {
+                delegate.write(bytes, offset, retained);
+            }
+            if (retained < length) {
+                truncated = true;
+            }
+        }
+
+        private String decodeUtf8() {
+            return delegate.toString(StandardCharsets.UTF_8);
+        }
+
+        private boolean isTruncated() {
+            return truncated;
+        }
     }
 }
