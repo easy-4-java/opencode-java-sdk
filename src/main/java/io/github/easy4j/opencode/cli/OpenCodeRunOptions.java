@@ -26,7 +26,8 @@ import java.util.List;
  * {@code --continue/-c}, {@code --session/-s}, {@code --fork}, {@code --share},
  * {@code --model/-m}, {@code --agent}, {@code --file/-f}, {@code --format},
  * {@code --title}, {@code --attach}, {@code --username/-u}, {@code --password/-p},
- * {@code --dir}, {@code --variant}, {@code --thinking} and {@code --port}.
+ * {@code --dir}, {@code --variant}, {@code --thinking}, {@code --auto},
+ * {@code --interactive} and {@code --port}.
  * The message is always emitted last as the positional argument.</p>
  *
  * @author <a href="https://github.com/loong10k">Loong Wan</a>
@@ -52,6 +53,8 @@ public class OpenCodeRunOptions {
     private String dir;
     private String variant;
     private boolean thinking;
+    private boolean auto;
+    private boolean interactive;
     private Integer port;
 
     /**
@@ -121,6 +124,18 @@ public class OpenCodeRunOptions {
     /** Sets the {@code --thinking} flag — show thinking blocks in output. */
     public OpenCodeRunOptions thinking(boolean v) { this.thinking = v; return this; }
 
+    /**
+     * Sets the dangerous {@code --auto} permission auto-approval flag.
+     * Disabled by default and must be opted into explicitly.
+     */
+    public OpenCodeRunOptions auto(boolean v) { this.auto = v; return this; }
+
+    /**
+     * Sets {@code --interactive}. This models the upstream flag only; terminal/PTY
+     * lifecycle is handled separately from ordinary captured execution.
+     */
+    public OpenCodeRunOptions interactive(boolean v) { this.interactive = v; return this; }
+
     /** Sets the {@code --port} flag — port of the attached server. */
     public OpenCodeRunOptions port(Integer v) { this.port = v; return this; }
 
@@ -151,6 +166,8 @@ public class OpenCodeRunOptions {
         if (dir != null) { args.add("--dir"); args.add(dir); }
         if (variant != null) { args.add("--variant"); args.add(variant); }
         if (thinking) { args.add("--thinking"); }
+        if (auto) { args.add("--auto"); }
+        if (interactive) { args.add("--interactive"); }
         if (port != null) { args.add("--port"); args.add(String.valueOf(port)); }
         if (message != null) { args.add(message); }
         return args.toArray(new String[0]);
