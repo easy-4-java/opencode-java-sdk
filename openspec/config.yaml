@@ -1,16 +1,21 @@
 schema: spec-driven
-
-project:
-  name: opencode-java-sdk
-  description: Pure Java SDK for OpenCode HTTP, SSE and CLI integration.
-  language: Java
-  build: Maven
-
-conventions:
-  change_naming: kebab-case
-  requirements:
-    keyword: MUST
-  compatibility_branches:
-    - feature/1.0.x
-    - feature/2.0.x
-    - feature/3.0.x
+context: |
+  项目：easy-4-java/opencode-java-sdk，纯 Java、Maven，无 Spring 依赖。
+  维护 feature/1.0.x、feature/2.0.x、feature/3.0.x 三条兼容线。
+  1.0.x 的 JDK 8 声明与 release=17 配置存在冲突，解决前不得宣称兼容通过。
+  HTTP、SSE、CLI 保持独立；不以 HTTP 失败为由静默切换到 CLI。
+  正文使用简体中文；OpenSpec 结构标记及 SHALL/MUST 保留英文。
+  先形成可评审规范，再实施、验证和归档；文件存在不等于批准或实现完成。
+rules:
+  proposal:
+    - 标明固定源码基线、范围、非目标、兼容影响与批准状态。
+    - 没有主规范时，首次纳管的能力使用 New Capabilities 和 ADDED。
+  specs:
+    - 每个 Requirement 的正文必须含 SHALL 或 MUST，且至少有一个 WHEN/THEN Scenario。
+    - 只规定可观察行为；类名、算法、库选择放入 design.md。
+  design:
+    - 明确资源所有权、失败与取消、安全默认值、迁移和回滚。
+    - 区分已观察事实、建议决策、未验证实现和阻塞条件。
+  tasks:
+    - 使用未勾选的编号任务；每项包含规范编号、交付物及验证方法。
+    - 先规范评审和失败用例，再编码；没有实际测试证据不得勾选实现任务。

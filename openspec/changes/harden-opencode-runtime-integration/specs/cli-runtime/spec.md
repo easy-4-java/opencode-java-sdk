@@ -1,60 +1,88 @@
-# Delta for CLI Runtime
+# CLI 执行契约
+
+## Purpose
+
+使 Java 调用者能够限制资源、观察实时输出并可靠识别进程结果。
 
 ## ADDED Requirements
 
-### Requirement: CLI concurrency limits are enforced
+### Requirement: RUN-01 Bounded concurrency
 
-The executor MUST enforce `maxConcurrentExecutions` when the configured value is greater than zero.
+SDK MUST 在同一执行器实例内兑现正数并发上限，并对排队、取消和超时提供有界行为。
 
-#### Scenario: Limit reached
+#### Scenario: Capacity reached
 
-- GIVEN the concurrency limit is N
-- AND N executions are active
-- WHEN another execution is submitted
-- THEN it MUST wait for capacity or fail according to the selected admission policy
-- AND MUST NOT spawn an additional child process before capacity is available
+- **GIVEN** 并发上限为 N 且已达到
+- **WHEN** 提交下一项执行
+- **THEN** 在准入成功前不启动新进程；准入超时或取消有明确结果。
 
-### Requirement: CLI output retention is bounded
+#### Scenario: Release capacity
 
-The executor MUST bound retained stdout and stderr independently.
+- **WHEN** 启动失败、进程退出或执行被取消
+- **THEN** 资源清理完成后容量恢复且只释放一次，后续执行不永久阻塞。
 
-#### Scenario: Child output exceeds configured capture limit
+### Requirement: RUN-02 Bounded capture
 
-- GIVEN a configured output capture limit
-- WHEN a child emits more bytes than the limit
-- THEN retained output MUST remain within the configured bound
-- AND the result MUST indicate truncation
+SDK MUST 独立限制 stdout、stderr、无换行帧与待派发数据的保留量。
 
-### Requirement: CLI execution supports per-invocation environment isolation
+#### Scenario: Output exceeds limit
 
-The executor MUST allow a caller to control environment inheritance and provide environment overrides without mutating the JVM process environment.
+- **WHEN** 输出超过配置上限
+- **THEN** 保留数据不超过上限且标注截断，不能停止排空管道导致死锁。
 
-#### Scenario: Override one variable
+#### Scenario: Oversized protocol frame
 
-- GIVEN parent environment inheritance is enabled
-- AND an execution override defines a variable
-- WHEN the child process starts
-- THEN the child MUST see the override value
-- AND subsequent unrelated executions MUST NOT inherit that override unless configured
+- **WHEN** JSON 帧或消费队列超过限制
+- **THEN** 协议流明确失败或应用事先选择的策略，不静默丢失业务事件。
 
-### Requirement: Streaming execution delivers data before process exit
+### Requirement: RUN-03 Per call environment
 
-The SDK MUST provide an execution mode that exposes stdout and stderr incrementally while the process is running.
+SDK SHALL 允许每次调用独立控制环境继承、覆盖、移除和工作目录，且不修改父进程环境。
 
-#### Scenario: Long running JSON output
+#### Scenario: Concurrent contexts
 
-- GIVEN an OpenCode process emits multiple JSON event lines over time
-- WHEN the caller uses streaming execution
-- THEN each complete event line MUST be observable before process termination
-- AND process completion MUST be available through a separate completion result
+- **WHEN** 两个并发调用覆盖同一个环境键为不同值
+- **THEN** 各自子进程只收到自身配置，后续无覆盖调用不受污染。
 
-### Requirement: Process outcomes are classified
+#### Scenario: No inheritance
 
-The SDK MUST distinguish success, non-zero exit, spawn failure, timeout, and cancellation.
+- **WHEN** 明确关闭环境继承
+- **THEN** 只传递本次允许的变量，并对执行所需变量缺失返回可诊断错误。
 
-#### Scenario: Spawn failure
+### Requirement: RUN-04 Explicit outcomes
 
-- GIVEN the configured executable does not exist
-- WHEN execution is attempted
-- THEN the result or completion failure MUST identify spawn failure
-- AND MUST NOT report it as a normal non-zero OpenCode exit
+SDK MUST 区分成功、非零退出、启动失败、准入超时、运行超时、取消和输出处理失败，并保留已有输出及实际退出信息。
+
+#### Scenario: Nonzero exit
+
+- **WHEN** 子进程先输出诊断信息再以非零码退出
+- **THEN** 调用者取得真实退出码及保留范围内的 stdout/stderr，不只得到 -1 和空正文。
+
+#### Scenario: Cancel before spawn
+
+- **WHEN** 排队中的调用被取消
+- **THEN** 不启动子进程且返回取消终态。
+
+#### Scenario: Cancel while running
+
+- **WHEN** 运行中调用被取消或超时
+- **THEN** 终止所拥有的执行并回收管道、等待任务和准入容量，原因可区分。
+
+### Requirement: RUN-05 Incremental delivery
+
+SDK SHALL 在进程退出前交付完整输出帧，分离协议 stdout 与诊断 stderr，并提供独立完成结果。
+
+#### Scenario: Split UTF-8 frame
+
+- **WHEN** 中文字符和 JSON 帧被拆分在多个读块内
+- **THEN** 按顺序还原并在进程仍运行时交付，不产生乱码或重复帧。
+
+#### Scenario: Callback fails
+
+- **WHEN** 调用方回调抛异常
+- **THEN** 该错误被明确报告，清理可控资源，不误报为正常成功或 JSON 解析错误。
+
+#### Scenario: Preserve whitespace
+
+- **WHEN** 捕获输出含有有效前后空白
+- **THEN** 原始结果保留空白，展示层格式化不改变原始数据。

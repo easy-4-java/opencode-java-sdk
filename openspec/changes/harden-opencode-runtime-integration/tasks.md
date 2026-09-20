@@ -1,60 +1,62 @@
-## 1. Establish contract baselines
+# 实施任务（全部待批准与验证）
 
-- [ ] 1.1 Pin the supported OpenCode CLI/server version for this change and record the executable/version fixture used by integration tests.
-- [ ] 1.2 Add upstream-contract tests for `run --share`, `--auto`, representative Web/Serve flags, and raw argument pass-through.
-- [ ] 1.3 Add SSE fixtures for `message.part.delta`, `message.part.updated`, session idle, session error, and transport failure.
+每项勾选需要本项命令/测试证据及提交；存在代码或测试文件不算完成。现有候选代码先对照再复用。需求编号对应 specs 中的 Requirement 标题。
 
-## 2. Correct typed CLI contracts
+## 1. 规范和基线门禁
+- [ ] 1.1 [VER-01] 用户评审 proposal、六份 specs、design 与本计划；验收：review.md 记录批准范围和版本，不以工件状态代替批准。
+- [ ] 1.2 [VER-05] 安装并记录 OpenSpec CLI 版本，执行 `openspec validate harden-opencode-runtime-integration --strict`；验收：退出码 0 和完整日志。
+- [ ] 1.3 [VER-02] 固定 OpenCode v1.17.18 的来源、实际 version 输出和二进制 SHA-256；验收：fixture 清单可重建且没有只写 latest。
+- [ ] 1.4 [VER-01] 将既有实现分支的 11 个主代码文件与 7 个测试文件逐条关联需求并复查；验收：候选改动清单、采用/调整原因及实际测试证据。
+- [ ] 1.5 [VER-04] 单独解决 1.0.x JDK 基线冲突；验收：用户批准的基线决定、POM/CI/README 一致及依赖字节码验证。此项阻塞第 8 节的 1.0.x 移植。
 
-- [ ] 2.1 Replace the incorrect string-valued `OpenCodeRunOptions.share` model with boolean switch semantics, providing a deliberate compatibility/deprecation path if needed.
-- [ ] 2.2 Add opt-in `--auto` modeling with default false.
-- [ ] 2.3 Model `--interactive` without claiming PTY support and document the difference between flag coverage and terminal-session support.
-- [ ] 2.4 Audit remaining typed CLI wrappers against the pinned upstream version and correct option arity mismatches.
+## 2. CLI 参数契约
+- [ ] 2.1 [CLI-01,VER-02] 先添加 share 布尔/旧字符串迁移失败用例，再修复 OpenCodeRunOptions；验收：错误的 org 值被拒绝，目标解析器接受正确 argv，旧错误断言被替换。
+- [ ] 2.2 [CLI-02] 添加默认权限与显式 auto 用例，再实现对应选项；验收：默认 argv 无任何跳过权限开关。
+- [ ] 2.3 [CLI-03] 生成目标 tag 的逐命令 flag 清单，核验 run/TUI/serve/web/ACP/全局/stats；验收：每项 arity、支持版本和 fixture 可追溯。
+- [ ] 2.4 [CLI-03] 按已核验清单补齐类型化选项及可选数值统计；验收：三态 stats 和重复 CORS 参数通过真实解析测试。
+- [ ] 2.5 [CLI-04] 添加带空格路径、中文及特殊字符 argv 用例，再修正可执行文件构造；验收：没有 shell 展开且 argv 边界正确。
+- [ ] 2.6 [CLI-05] 实现捕获/继承终端的显式边界；验收：无输入的交互调用启动前失败，支持范围文档准确。
 
-## 3. Harden short-lived CLI execution
+## 3. CLI 资源控制
+- [ ] 3.1 [RUN-01] 为同步、流式和 managed 调用设计共享准入控制；验收：N 上限、排队超时和排队取消测试通过。
+- [ ] 3.2 [RUN-02] 实现独立捕获上限、截断元数据和持续管道排空；验收：大 stdout/stderr 与无换行输出测试不越界、不死锁。
+- [ ] 3.3 [RUN-03] 补每次调用不可变环境/目录快照；验收：并发同键覆盖、不继承环境、变量移除与后续调用隔离测试通过。
+- [ ] 3.4 [RUN-04] 实现结果分类并保留已捕获输出；验收：成功、非零退出、启动失败、准入超时、运行超时和取消的断言分别成立。
+- [ ] 3.5 [RUN-01,RUN-04] 核验 permit、子进程、流和线程清理；验收：反复失败/取消后资源恢复，幂等 close 不重复释放。
 
-- [ ] 3.1 Enforce `maxConcurrentExecutions` in `OpenCodeCliExecutor`.
-- [ ] 3.2 Add bounded stdout/stderr capture and truncation metadata.
-- [ ] 3.3 Preserve captured output on failures when available and classify success, non-zero exit, spawn failure, timeout, and cancellation.
-- [ ] 3.4 Add per-invocation working-directory and environment inheritance/override support.
-- [ ] 3.5 Add unit tests for concurrency, environment isolation, large output, UTF-8 boundaries, non-zero exit, spawn failure, timeout, and cancellation.
+## 4. CLI 实时输出
+- [ ] 4.1 [RUN-05] 补流式句柄、独立 exit future 和增量回调；验收：受控进程退出前即可观察首帧。
+- [ ] 4.2 [RUN-02,RUN-05] 实现跨块 UTF-8 解码和 JSON framing；验收：中文拆包、半帧、超长帧及异常 JSON 测试通过。
+- [ ] 4.3 [RUN-02,RUN-05] 加入有界派发与回调失败处理；验收：慢消费者/抛错消费者不会造成无界内存或静默成功。
+- [ ] 4.4 [RUN-04,RUN-05] 实现 runStream 门面与取消；验收：stdout/stderr 分离、保留空白和运行取消的端到端测试通过。
 
-## 4. Add streaming CLI execution
+## 5. Web/Serve 与 ACP launcher
+- [ ] 5.1 [SRV-01,SRV-03] 建立 managed 状态与超时模型；验收：使用缩短的普通命令超时测试证明常驻服务不会被误杀。
+- [ ] 5.2 [SRV-02] 建立明确端口、端点身份和 HTTP 健康就绪；验收：正常就绪、端口占用、早退及就绪超时均正确分类。
+- [ ] 5.3 [SRV-04] 实现 loopback 默认、显式网络开放和认证传递；验收：mDNS/LAN、CORS 与服务端认证的独立用例通过。
+- [ ] 5.4 [SRV-03] 实现 owned/external 关闭边界和强制终止策略；验收：外部进程未被误杀、自建进程无遗留，并记录各 OS/JDK 进程树清理结果。
+- [ ] 5.5 [SRV-04,RUN-03] 审查 SDK 诊断脱敏；验收：测试日志不含标记密码/token/配置原文，不声称原始子进程输出已天然脱敏。
+- [ ] 5.6 [SRV-05] 提供 ACP 双向 stdio 句柄；验收：受控双向协议进程不丢字节，stderr 分离，不将 spawn 标为协议 READY。
 
-- [ ] 4.1 Introduce a streaming execution handle with incremental stdout/stderr callbacks or publishers and a separate completion future.
-- [ ] 4.2 Implement incremental UTF-8-safe line/event framing suitable for `run --format json`.
-- [ ] 4.3 Add cancellation and bounded buffering/backpressure behavior.
-- [ ] 4.4 Add `OpenCodeCli.runStream(...)` convenience APIs and tests proving events are visible before process exit.
+## 6. HTTP/SSE 聊天
+- [ ] 6.1 [CHAT-01,VER-03] 先建立真实版本 delta/snapshot/状态 fixture；验收：旧实现的漏片、重复或状态解析问题由用例明确复现。
+- [ ] 6.2 [CHAT-01] 实现精确事件类型和按 session/message/part/field 的归约；验收：混合快照/增量、非正文与无关会话用例通过。
+- [ ] 6.3 [CHAT-02] 实现就绪门禁与分阶段超时；验收：SSE 未就绪时无 prompt，请求最多一次，真实服务首片测试通过。
+- [ ] 6.4 [CHAT-03] 传播传输错误、异常 EOF、结构化 idle 和回调错误；验收：错误立即终结且不会被计时器掩盖。
+- [ ] 6.5 [CHAT-04] 实现取消和幂等终态清理；验收：就绪前取消、完成/取消竞态及长期重复调用无订阅/计时器遗留。
+- [ ] 6.6 [CHAT-05] 增加同客户端同会话冲突控制并定义外部并发限制；验收：不串话、不自动重发 prompt，不宣称无依据精确一次恢复。
 
-## 5. Add managed Web/Serve/ACP launcher lifecycle
+## 7. 配置模型
+- [ ] 7.1 [CFG-01] 完善 OpenCodeServerConfig 与动态配置提交兼容；验收：目标版本 server fixture 和旧调用示例通过。
+- [ ] 7.2 [CFG-02] 实现根/server 未知键的正确 Jackson 扩展；验收：未知对象、数组、null、布尔和冲突键 round-trip 测试通过。
+- [ ] 7.3 [CFG-03] 核验 PATCH 的省略/null/删除及 provider/agent 对象形状；验收：真实或契约服务器证明局部修改不损坏其他配置。
 
-- [ ] 5.1 Introduce a managed process handle exposing state, exit completion, bounded log tail, graceful stop, and force kill.
-- [ ] 5.2 Add managed `serve` and `web` launch APIs with separate startup timeout and no inherited short-command lifetime timeout.
-- [ ] 5.3 Implement HTTP readiness probing and clean startup-failure teardown.
-- [ ] 5.4 Define random-port behavior: reliable discovery if supported by a stable upstream contract; otherwise require explicit port in the managed API.
-- [ ] 5.5 Add ACP managed-launch support while explicitly deferring a full ACP protocol client.
-- [ ] 5.6 Add lifecycle tests for readiness success, readiness failure, graceful stop, forced stop, unexpected exit, and log-tail bounds.
-
-## 6. Correct HTTP/SSE chat streaming
-
-- [ ] 6.1 Treat canonical text delta events as append operations and stop appending full `message.part.updated` snapshots as deltas.
-- [ ] 6.2 Extend SSE subscriptions with explicit connected/readiness completion.
-- [ ] 6.3 Propagate SSE transport failure to the active streaming chat result.
-- [ ] 6.4 Ensure prompt submission occurs only after SSE readiness.
-- [ ] 6.5 Keep local cancellation separate from explicit server-side `abortSession`.
-- [ ] 6.6 Add race tests for immediate cancellation, connection failure before readiness, transport drop during generation, and duplicate snapshot/delta sequences.
-
-## 7. Strengthen configuration modeling
-
-- [ ] 7.1 Add a server configuration model matching the pinned upstream schema while retaining an extension map.
-- [ ] 7.2 Implement real unknown-property capture and serialization using the correct Jackson mechanism for the 3.0.x line.
-- [ ] 7.3 Add read-modify-write round-trip tests proving unknown fields are preserved.
-
-## 8. Documentation and branch compatibility
-
-- [ ] 8.1 Update README/API examples to distinguish short command execution, streaming execution, managed server lifecycle, and interactive terminal limitations.
-- [ ] 8.2 Verify `feature/3.0.x` with full unit tests and enabled OpenCode integration-contract tests.
-- [ ] 8.3 Port behavioral changes to `feature/2.0.x` using Java 17/Jackson 2 APIs and rerun equivalent tests.
-- [ ] 8.4 Resolve the `feature/1.0.x` JDK baseline conflict before porting; document the chosen baseline and make CI/POM/README agree.
-- [ ] 8.5 Port applicable behavior to `feature/1.0.x` and run the branch-specific build/test matrix.
-- [ ] 8.6 Run OpenSpec validation and archive/sync the capability specs only after implementation and verification pass.
+## 8. 三线验证与交付
+- [ ] 8.1 [VER-03] 建立 Linux/macOS/Windows 受控子进程测试矩阵；验收：平台不支持项明确标为未覆盖，不计作通过。
+- [ ] 8.2 [VER-04] 在 3.0.x 按其 wrapper 与实际 JDK/Jackson 运行单测和契约测试；验收：提交、版本、命令、退出码、报告齐备。
+- [ ] 8.3 [VER-04] 移植到 2.0.x，仅做 Java/Jackson 适配；验收：同一语义 fixture 及对应构建测试通过。
+- [ ] 8.4 [VER-04] 在 1.5 完成后移植 1.0.x；验收：在批准的真实 JDK 上验证产物、依赖字节码及行为，而非仅改 compiler 属性。
+- [ ] 8.5 [VER-02,VER-03] 执行固定 OpenCode 真实契约测试；验收：不需要模型的测试实际运行，需要付费模型的测试显式授权且跳过项单独报告。
+- [ ] 8.6 [VER-04] 更新 README、迁移说明、运行模式示例和三线差异表；验收：示例编译及参数校验通过，不能只写 stable/production-ready。
+- [ ] 8.7 [VER-03,VER-04] 审查线程/连接/进程泄漏、日志敏感数据和依赖安全扫描；验收：记录工具版本、输入范围及实际报告，静态审查不冒充生产就绪认证。
+- [ ] 8.8 [VER-05] 完成最终严格校验和已批准范围的全部验收后再同步并归档；验收：无未验收任务、主规范可校验、归档提交可追溯，且未经授权不自动发布制品。
