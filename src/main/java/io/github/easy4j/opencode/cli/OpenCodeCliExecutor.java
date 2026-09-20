@@ -9,14 +9,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.function.Consumer;
 
 /**
  * Executor for the local {@code opencode} CLI subprocess.
@@ -88,6 +96,126 @@ public class OpenCodeCliExecutor {
                 concurrencyLimiter.release();
             }
         }
+    }
+
+    /**
+     * Start a child process and deliver complete UTF-8 stdout/stderr lines while it is running.
+     * The returned completion future resolves after process exit and stream pumps finish.
+     */
+    public OpenCodeCliStreamHandle stream(OpenCodeCliExecutionContext context,
+                                          Consumer<String> stdoutConsumer,
+                                          Consumer<String> stderrConsumer,
+                                          String... args) {
+        boolean acquired = false;
+        try {
+            if (concurrencyLimiter != null) {
+                concurrencyLimiter.acquire();
+                acquired = true;
+            }
+
+            ProcessBuilder builder = createProcessBuilder(context, args);
+            Process process = builder.start();
+            CompletableFuture<OpenCodeCliResult> completion = new CompletableFuture<>();
+            OpenCodeCliStreamHandle handle = new OpenCodeCliStreamHandle(process, completion);
+
+            BoundedOutputStream stdout = new BoundedOutputStream(config.getMaxStdoutBytes());
+            BoundedOutputStream stderr = new BoundedOutputStream(config.getMaxStderrBytes());
+
+            Thread stdoutThread = pumpThread(
+                    "opencode-cli-stdout", process.getInputStream(), stdout, stdoutConsumer);
+            Thread stderrThread = pumpThread(
+                    "opencode-cli-stderr", process.getErrorStream(), stderr, stderrConsumer);
+
+            final boolean releasePermit = acquired;
+            Thread waiter = new Thread(() -> {
+                try {
+                    int exitCode = process.waitFor();
+                    joinPump(stdoutThread);
+                    joinPump(stderrThread);
+                    completion.complete(buildResult(exitCode, stdout, stderr, null));
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    handle.cancel();
+                    completion.complete(buildResult(-1, stdout, stderr, "CLI streaming wait interrupted"));
+                } finally {
+                    if (releasePermit && concurrencyLimiter != null) {
+                        concurrencyLimiter.release();
+                    }
+                }
+            }, "opencode-cli-waiter");
+            waiter.setDaemon(true);
+            waiter.start();
+
+            return handle;
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            CompletableFuture<OpenCodeCliResult> failed = CompletableFuture.completedFuture(
+                    new OpenCodeCliResult(-1, "", "CLI streaming start interrupted"));
+            return new OpenCodeCliStreamHandle(null, failed);
+        } catch (IOException error) {
+            if (acquired && concurrencyLimiter != null) {
+                concurrencyLimiter.release();
+            }
+            CompletableFuture<OpenCodeCliResult> failed = CompletableFuture.completedFuture(
+                    new OpenCodeCliResult(-1, "", error.getMessage()));
+            return new OpenCodeCliStreamHandle(null, failed);
+        }
+    }
+
+    public OpenCodeCliStreamHandle stream(Consumer<String> stdoutConsumer,
+                                          Consumer<String> stderrConsumer,
+                                          String... args) {
+        return stream(null, stdoutConsumer, stderrConsumer, args);
+    }
+
+    private ProcessBuilder createProcessBuilder(OpenCodeCliExecutionContext context, String... args) {
+        List<String> command = new ArrayList<>();
+        command.add(config.getExecutable());
+        Collections.addAll(command, args);
+
+        ProcessBuilder builder = new ProcessBuilder(command);
+        File workingDirectory = resolveWorkingDirectory(context);
+        if (workingDirectory != null) {
+            builder.directory(workingDirectory);
+        }
+
+        if (context != null) {
+            Map<String, String> environment = builder.environment();
+            if (!context.isInheritParentEnvironment()) {
+                environment.clear();
+            }
+            environment.putAll(context.getEnvironment());
+        }
+        return builder;
+    }
+
+    private Thread pumpThread(String name, InputStream input,
+                              BoundedOutputStream capture, Consumer<String> consumer) {
+        Thread thread = new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(input, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    byte[] bytes = line.getBytes(StandardCharsets.UTF_8);
+                    capture.write(bytes, 0, bytes.length);
+                    capture.write('\n');
+                    if (consumer != null) {
+                        consumer.accept(line);
+                    }
+                }
+            } catch (IOException error) {
+                if (config.getDebug().allows(HttpLogLevel.BASIC)) {
+                    log.debug("OpenCode CLI stream pump ended: stream={}, error={}", name, error.getMessage());
+                }
+            }
+        }, name);
+        thread.setDaemon(true);
+        thread.start();
+        return thread;
+    }
+
+    private void joinPump(Thread thread) throws InterruptedException {
+        thread.join();
     }
 
     private OpenCodeCliResult executeInternal(OpenCodeCliExecutionContext context, String... args) {
