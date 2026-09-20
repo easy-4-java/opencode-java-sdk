@@ -28,6 +28,9 @@ public class OpenCodeConfig {
      * OpenCode 界面主题名称。
      */
     private String theme;
+
+    /** Server configuration for opencode serve and web commands. */
+    private OpenCodeServerConfig server;
     /**
      * 默认模型标识，通常采用 provider/model 格式。
      */
