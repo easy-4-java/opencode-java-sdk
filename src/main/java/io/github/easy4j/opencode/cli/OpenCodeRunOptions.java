@@ -40,7 +40,7 @@ public class OpenCodeRunOptions {
     private boolean continueLast;
     private String sessionId;
     private boolean fork;
-    private String share;
+    private boolean share;
     private String model;
     private String agent;
     private List<String> files;
@@ -76,7 +76,14 @@ public class OpenCodeRunOptions {
     public OpenCodeRunOptions fork(boolean v) { this.fork = v; return this; }
 
     /** Sets the {@code --share} flag — share the session after the run. */
-    public OpenCodeRunOptions share(String v) { this.share = v; return this; }
+    public OpenCodeRunOptions share(boolean v) { this.share = v; return this; }
+
+    /**
+     * @deprecated OpenCode models {@code --share} as a boolean switch. Any non-null legacy
+     * value enables the switch and the value itself is ignored.
+     */
+    @Deprecated
+    public OpenCodeRunOptions share(String v) { this.share = v != null; return this; }
 
     /** Sets the {@code --model/-m} flag — provider/model identifier. */
     public OpenCodeRunOptions model(String v) { this.model = v; return this; }
@@ -130,7 +137,7 @@ public class OpenCodeRunOptions {
         if (continueLast) { args.add("--continue"); }
         if (sessionId != null) { args.add("--session"); args.add(sessionId); }
         if (fork) { args.add("--fork"); }
-        if (share != null) { args.add("--share"); args.add(share); }
+        if (share) { args.add("--share"); }
         if (model != null) { args.add("--model"); args.add(model); }
         if (agent != null) { args.add("--agent"); args.add(agent); }
         if (files != null) {
