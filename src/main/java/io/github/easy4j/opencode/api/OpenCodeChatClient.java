@@ -249,8 +249,11 @@ public class OpenCodeChatClient extends OpenCodeHttpClient {
         if (Objects.isNull(type)) {
             return;
         }
-        if (type.contains("text.delta") || type.contains("message.part.updated")) {
+        if (type.contains("text.delta")) {
             stream.acceptDelta(extractDeltaText(event));
+        } else if (type.contains("message.part.delta")
+                && Objects.equals("text", Objects.toString(event.getProperties().get("field"), null))) {
+            stream.acceptDelta(Objects.toString(event.getProperties().get("delta"), null));
         }
         if (type.contains("session.status") || type.contains("session.idle")) {
             String status = Objects.toString(event.getProperties().get("status"), null);
