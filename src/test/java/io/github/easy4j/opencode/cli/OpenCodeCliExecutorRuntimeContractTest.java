@@ -56,7 +56,7 @@ class OpenCodeCliExecutorRuntimeContractTest {
         assertEquals("scoped-value", scoped.getStdout());
 
         OpenCodeCliResult next = executor.execute(
-                "-c", "printf %s \"\${OPENCODE_SDK_TEST_ENV-unset}\"");
+                "-c", "printf %s \"${OPENCODE_SDK_TEST_ENV-unset}\"");
         assertEquals("unset", next.getStdout(),
                 "per-execution environment overrides must not mutate later executions");
     }
