@@ -76,4 +76,14 @@ public class OpenCodeCliConfig {
      * 本机 CLI 子进程最大并发数；小于等于 0 时不额外限制。
      */
     private int maxConcurrentExecutions = 0;
+
+    /**
+     * Maximum retained stdout bytes per execution. Values <= 0 mean unbounded.
+     */
+    private int maxStdoutBytes = 4 * 1024 * 1024;
+
+    /**
+     * Maximum retained stderr bytes per execution. Values <= 0 mean unbounded.
+     */
+    private int maxStderrBytes = 1024 * 1024;
 }

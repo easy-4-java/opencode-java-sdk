@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -115,6 +116,8 @@ public class OpenCodeSseClient implements AutoCloseable {
         // 也支持在连接稍后创建完成时通过下方 active 检查补偿取消。
         AtomicReference<EventSource> eventSourceRef = new AtomicReference<>();
         AtomicReference<SseSubscription> subscriptionRef = new AtomicReference<>();
+        CompletableFuture<Void> ready = new CompletableFuture<>();
+        CompletableFuture<Throwable> failure = new CompletableFuture<>();
         SseSubscription subscription = new SseSubscription(() -> {
             EventSource eventSource = eventSourceRef.get();
             if (Objects.nonNull(eventSource)) {
@@ -124,13 +127,14 @@ public class OpenCodeSseClient implements AutoCloseable {
             if (Objects.nonNull(current)) {
                 activeSubscriptions.remove(current);
             }
-        });
+        }, ready, failure);
         subscriptionRef.set(subscription);
         activeSubscriptions.add(subscription);
         long startedAt = System.nanoTime();
         EventSourceListener listener = new EventSourceListener() {
             @Override
             public void onOpen(EventSource eventSource, Response response) {
+                ready.complete(null);
                 debug(HttpLogLevel.BASIC, "OpenCode SSE connected: streamType=events, url={}, status={}, elapsedMs={}",
                         request.url(), response.code(), elapsedMillis(startedAt));
             }
@@ -156,16 +160,26 @@ public class OpenCodeSseClient implements AutoCloseable {
 
             @Override
             public void onClosed(EventSource eventSource) {
+                if (!ready.isDone()) {
+                    IllegalStateException closedBeforeReady =
+                            new IllegalStateException("SSE stream closed before readiness");
+                    ready.completeExceptionally(closedBeforeReady);
+                    failure.complete(closedBeforeReady);
+                }
                 closeSubscription(subscriptionRef);
                 debug(HttpLogLevel.BASIC, "OpenCode SSE closed: streamType=events, url={}", request.url());
             }
 
             @Override
             public void onFailure(EventSource eventSource, Throwable error, Response response) {
+                Throwable cause = Objects.nonNull(error)
+                        ? error : new IllegalStateException("OpenCode SSE failed without throwable");
+                failure.complete(cause);
+                ready.completeExceptionally(cause);
                 closeSubscription(subscriptionRef);
                 log.warn("OpenCode SSE failed: streamType=events, url={}, status={}, error={}",
                         request.url(), Objects.nonNull(response) ? response.code() : -1,
-                        Objects.nonNull(error) ? error.getMessage() : "unknown");
+                        cause.getMessage());
             }
         };
         EventSource eventSource = EventSources.createFactory(httpClient)

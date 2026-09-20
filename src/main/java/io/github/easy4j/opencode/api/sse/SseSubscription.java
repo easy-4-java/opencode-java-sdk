@@ -1,6 +1,8 @@
 package io.github.easy4j.opencode.api.sse;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -20,13 +22,35 @@ public final class SseSubscription implements AutoCloseable {
      */
     private final Runnable cancellation;
 
+    /** Completes when the SSE transport is connected and ready to receive events. */
+    private final CompletableFuture<Void> ready;
+
+    /** Completes with the terminal transport failure when one occurs. */
+    private final CompletableFuture<Throwable> failure;
+
     /**
      * 创建 sse subscription 实例，并按传入依赖确定资源所有权。
      *
      * @param cancellation 取消信号；为 {@code null} 时不可由外部取消
      */
     public SseSubscription(Runnable cancellation) {
+        this(cancellation, new CompletableFuture<>(), new CompletableFuture<>());
+    }
+
+    public SseSubscription(Runnable cancellation,
+                           CompletableFuture<Void> ready,
+                           CompletableFuture<Throwable> failure) {
         this.cancellation = Objects.requireNonNull(cancellation, "cancellation");
+        this.ready = Objects.requireNonNull(ready, "ready");
+        this.failure = Objects.requireNonNull(failure, "failure");
+    }
+
+    public CompletableFuture<Void> getReady() {
+        return ready;
+    }
+
+    public CompletableFuture<Throwable> getFailure() {
+        return failure;
     }
 
     /**
@@ -37,6 +61,9 @@ public final class SseSubscription implements AutoCloseable {
     public boolean cancel() {
         if (!active.compareAndSet(true, false)) {
             return false;
+        }
+        if (!ready.isDone()) {
+            ready.completeExceptionally(new CancellationException("SSE subscription cancelled before readiness"));
         }
         cancellation.run();
         return true;

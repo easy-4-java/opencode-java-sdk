@@ -1,9 +1,13 @@
 package io.github.easy4j.opencode.api.model;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -24,6 +28,9 @@ public class OpenCodeConfig {
      * OpenCode 界面主题名称。
      */
     private String theme;
+
+    /** Server configuration for opencode serve and web commands. */
+    private OpenCodeServerConfig server;
     /**
      * 默认模型标识，通常采用 provider/model 格式。
      */
@@ -113,9 +120,20 @@ public class OpenCodeConfig {
     private Map<String, Object> experimental;
 
     /**
-     * 兜底字段：未知字段落这里
+     * Unknown root configuration fields retained for forward-compatible round trips.
      */
-    private Map<String, Object> extra;
+    @JsonIgnore
+    private Map<String, Object> extra = new LinkedHashMap<>();
+
+    @JsonAnySetter
+    public void putExtra(String key, Object value) {
+        extra.put(key, value);
+    }
+
+    @JsonAnyGetter
+    public Map<String, Object> anyExtra() {
+        return extra;
+    }
     /**
      * MCP 服务器注册表，键为服务器唯一名称（见 MCP servers 文档）。
      * 每项为 {@code local}（stdio）或 {@code remote}（HTTP/SSE）形态。
