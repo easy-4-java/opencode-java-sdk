@@ -374,7 +374,11 @@ public class OpenCodeCliExecutor {
         }
 
         private String decodeUtf8() {
-            return delegate.toString(StandardCharsets.UTF_8);
+            try {
+                return delegate.toString("UTF-8");
+            } catch (java.io.UnsupportedEncodingException e) {
+                return delegate.toString();
+            }
         }
 
         private boolean isTruncated() {

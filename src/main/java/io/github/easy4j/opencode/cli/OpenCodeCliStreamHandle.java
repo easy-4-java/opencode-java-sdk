@@ -51,23 +51,19 @@ public final class OpenCodeCliStreamHandle {
         if (process == null) {
             return;
         }
-        ProcessHandle handle = process.toHandle();
-        handle.descendants().forEach(child -> {
-            try {
-                child.destroy();
-            } catch (RuntimeException ignored) {
-            }
-        });
-        process.destroy();
-
+        // JDK 8 没有 ProcessHandle API——只能销毁直接子进程，不能杀进程树。
+        // 在 Java 9+ 上可通过 process.toHandle().descendants() 扩展进程树清理。
+        try {
+            process.destroy();
+        } catch (RuntimeException ignored) {
+            // best effort
+        }
         if (process.isAlive()) {
-            handle.descendants().forEach(child -> {
-                try {
-                    child.destroyForcibly();
-                } catch (RuntimeException ignored) {
-                }
-            });
-            process.destroyForcibly();
+            try {
+                process.destroyForcibly();
+            } catch (RuntimeException ignored) {
+                // best effort
+            }
         }
     }
 }

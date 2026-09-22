@@ -4,6 +4,7 @@ import io.github.easy4j.opencode.OpenCodeCliConfig;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -59,7 +60,7 @@ class OpenCodeCliStreamingContractTest {
 
         OpenCodeCliResult result = completion.get(4, TimeUnit.SECONDS);
         assertTrue(result.isSuccess());
-        assertEquals(List.of("first", "second"), stdout);
+        assertEquals(Arrays.asList("first", "second"), stdout);
     }
 
     @Test
