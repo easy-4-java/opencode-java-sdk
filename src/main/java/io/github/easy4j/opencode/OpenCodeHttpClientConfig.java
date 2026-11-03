@@ -130,6 +130,26 @@ public class OpenCodeHttpClientConfig {
      */
     private String defaultAgent;
 
+    /** Legacy bean alias for {@link #getBaseUrl()}. */
+    public String getServerUrl() {
+        return baseUrl;
+    }
+
+    /** Sets the server URL through the legacy bean property. */
+    public void setServerUrl(String serverUrl) {
+        this.baseUrl = serverUrl;
+    }
+
+    /** Legacy bean alias for {@link #getStreamEventQueueCapacity()}. */
+    public int getSseEventQueueCapacity() {
+        return streamEventQueueCapacity;
+    }
+
+    /** Sets the event queue capacity through the legacy bean property. */
+    public void setSseEventQueueCapacity(int capacity) {
+        this.streamEventQueueCapacity = capacity;
+    }
+
     /**
      * 解析用于 HTTP Basic Auth 的密码。
      *
