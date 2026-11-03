@@ -37,6 +37,12 @@ jobs:
       - name: Build and verify with JaCoCo coverage gate
         run: mvn -B --no-transfer-progress clean verify
 
+      - name: Verify direct Surefire without agent initialization
+        run: mvn -B --no-transfer-progress surefire:test
+
+      - name: Verify tests with JaCoCo disabled
+        run: mvn -B --no-transfer-progress test -Djacoco.skip=true
+
       - name: Upload JaCoCo coverage report
         if: always()
         uses: actions/upload-artifact@v7
