@@ -58,4 +58,32 @@ class OpenCodeHttpClientConfigTest {
         config.setSseEventQueueCapacity(17);
         assertEquals(17, config.getStreamEventQueueCapacity());
     }
+
+    @Test
+    void aliasesShareCanonicalState() {
+        OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
+        config.setServerUrl("http://legacy:4096");
+        assertEquals("http://legacy:4096", config.getBaseUrl());
+        config.setBaseUrl("http://canonical:4096");
+        assertEquals("http://canonical:4096", config.getServerUrl());
+        config.setStreamEventQueueCapacity(23);
+        assertEquals(23, config.getSseEventQueueCapacity());
+        config.setSseEventQueueCapacity(31);
+        assertEquals(31, config.getStreamEventQueueCapacity());
+    }
+
+    @Test
+    void jsonBindsBothPropertyNamesAndRoundTrips() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        for (String names : new String[]{"serverUrl,sseEventQueueCapacity", "baseUrl,streamEventQueueCapacity"}) {
+            String[] properties = names.split(",");
+            String json = "{\"" + properties[0] + "\":\"http://json:4096\",\"" + properties[1] + "\":37}";
+            OpenCodeHttpClientConfig config = mapper.readValue(json, OpenCodeHttpClientConfig.class);
+            assertEquals("http://json:4096", config.getBaseUrl());
+            assertEquals(config.getBaseUrl(), config.getServerUrl());
+            assertEquals(37, config.getStreamEventQueueCapacity());
+            assertEquals(37, config.getSseEventQueueCapacity());
+            assertEquals(config, mapper.readValue(mapper.writeValueAsString(config), OpenCodeHttpClientConfig.class));
+        }
+    }
 }
