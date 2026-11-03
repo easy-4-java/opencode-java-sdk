@@ -86,4 +86,44 @@ class OpenCodeHttpClientConfigTest {
             assertEquals(config, mapper.readValue(mapper.writeValueAsString(config), OpenCodeHttpClientConfig.class));
         }
     }
+
+    @Test
+    void jsonOutputExposesEqualCanonicalAndLegacyValues() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        OpenCodeHttpClientConfig config = new OpenCodeHttpClientConfig();
+        config.setBaseUrl("http://output:4096");
+        config.setStreamEventQueueCapacity(41);
+        com.fasterxml.jackson.databind.JsonNode json = mapper.valueToTree(config);
+        assertEquals("http://output:4096", json.get("baseUrl").asText());
+        assertEquals(json.get("baseUrl"), json.get("serverUrl"));
+        assertEquals(41, json.get("streamEventQueueCapacity").asInt());
+        assertEquals(json.get("streamEventQueueCapacity"), json.get("sseEventQueueCapacity"));
+    }
+
+    @Test
+    void conflictingJsonNamesUseLastValueInDocumentOrder() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        OpenCodeHttpClientConfig canonicalLast = mapper.readValue("""
+                {"serverUrl":"http://legacy:4096","baseUrl":"http://canonical:4096",
+                 "sseEventQueueCapacity":11,"streamEventQueueCapacity":22}
+                """, OpenCodeHttpClientConfig.class);
+        assertEquals("http://canonical:4096", canonicalLast.getServerUrl());
+        assertEquals(22, canonicalLast.getSseEventQueueCapacity());
+        OpenCodeHttpClientConfig legacyLast = mapper.readValue("""
+                {"baseUrl":"http://canonical:4096","serverUrl":"http://legacy:4096",
+                 "streamEventQueueCapacity":22,"sseEventQueueCapacity":11}
+                """, OpenCodeHttpClientConfig.class);
+        assertEquals("http://legacy:4096", legacyLast.getBaseUrl());
+        assertEquals(11, legacyLast.getStreamEventQueueCapacity());
+    }
+
+    @Test
+    void jsonAliasesAlsoBindNestedHttpConfiguration() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        OpenCodeClientConfig config = mapper.readValue("""
+                {"http":{"serverUrl":"http://nested:4096","sseEventQueueCapacity":19}}
+                """, OpenCodeClientConfig.class);
+        assertEquals("http://nested:4096", config.getHttp().getBaseUrl());
+        assertEquals(19, config.getHttp().getStreamEventQueueCapacity());
+    }
 }
